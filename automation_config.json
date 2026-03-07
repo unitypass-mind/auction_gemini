@@ -1,0 +1,30 @@
+{
+  "weekly_collection_count": 100,
+  "max_retries": 3,
+  "start_offset": 0,
+  "notification_enabled": false,
+  "notification_email": "",
+  "schedule": {
+    "data_collection": {
+      "enabled": true,
+      "frequency": "weekly",
+      "day_of_week": "monday",
+      "time": "02:00"
+    },
+    "model_retrain": {
+      "enabled": true,
+      "frequency": "weekly",
+      "day_of_week": "monday",
+      "time": "03:00"
+    },
+    "performance_check": {
+      "enabled": true,
+      "frequency": "daily",
+      "time": "01:00"
+    }
+  },
+  "performance_alerts": {
+    "error_rate_threshold": 0.05,
+    "check_enabled": true
+  }
+}

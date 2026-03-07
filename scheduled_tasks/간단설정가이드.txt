@@ -1,0 +1,99 @@
+========================================
+Windows 작업 스케줄러 설정 방법
+========================================
+
+방법 1: PowerShell 사용 (빠름) ⭐ 추천
+----------------------------------------
+
+1. 시작 메뉴에서 "PowerShell" 검색
+
+2. "Windows PowerShell"을 우클릭 → "관리자 권한으로 실행"
+
+3. 다음 명령어 복사 후 붙여넣기:
+
+cd C:\Users\unity\auction_gemini\scheduled_tasks
+.\setup_scheduler.ps1
+
+4. 완료!
+
+
+방법 2: 작업 스케줄러 GUI 사용
+----------------------------------------
+
+1. 시작 메뉴 → "작업 스케줄러" 검색
+
+2. 오른쪽 "작업 만들기" 클릭
+
+3. [일반] 탭:
+   - 이름: AuctionAI_Weekly_Update
+   - ✅ 가장 높은 수준의 권한으로 실행
+
+4. [트리거] 탭:
+   - "새로 만들기" 클릭
+   - 시작: 일정에 따라
+   - ✅ 매주
+   - 요일: 일요일
+   - 시간: 오전 3:00
+
+5. [동작] 탭:
+   - "새로 만들기" 클릭
+   - 프로그램/스크립트:
+     C:\Users\unity\auction_gemini\scheduled_tasks\weekly_update.bat
+
+6. [조건] 탭:
+   - ☐ 컴퓨터의 AC 전원이 켜진 경우에만 작업 시작 (체크 해제)
+
+7. "확인" 클릭
+
+
+========================================
+테스트 방법
+========================================
+
+PowerShell 관리자 권한으로:
+
+# 즉시 실행 테스트
+Start-ScheduledTask -TaskName AuctionAI_Weekly_Update
+
+# 상태 확인
+Get-ScheduledTask -TaskName AuctionAI_Weekly_Update
+
+# 다음 실행 시간 확인
+Get-ScheduledTask -TaskName AuctionAI_Weekly_Update | Get-ScheduledTaskInfo
+
+
+========================================
+로그 확인
+========================================
+
+실행 로그 위치:
+C:\Users\unity\auction_gemini\logs\weekly_update_log.txt
+
+
+========================================
+문제 해결
+========================================
+
+Q: 작업이 실행되지 않아요
+A: 작업 스케줄러 → 작업 기록 보기 확인
+
+Q: 권한 오류가 발생해요
+A: PowerShell을 "관리자 권한으로 실행" 했는지 확인
+
+Q: 스크립트를 찾을 수 없어요
+A: 경로가 정확한지 확인:
+   C:\Users\unity\auction_gemini\scheduled_tasks\weekly_update.bat
+
+
+========================================
+작업 삭제 방법
+========================================
+
+PowerShell 관리자 권한으로:
+
+Unregister-ScheduledTask -TaskName AuctionAI_Weekly_Update -Confirm:$false
+
+
+========================================
+
+도움이 필요하시면 scheduled_tasks/SCHEDULER_SETUP_GUIDE.md를 참고하세요!

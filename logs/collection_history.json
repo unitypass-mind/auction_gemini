@@ -1,0 +1,33 @@
+[
+  {
+    "timestamp": "2026-02-12T20:35:21.783474",
+    "date": "2026-02-12 20:35:21",
+    "stats": {
+      "total_fetched": 100,
+      "total_processed": 100,
+      "skipped": 0,
+      "errors": 0
+    }
+  },
+  {
+    "timestamp": "2026-02-16T07:17:36.336122",
+    "date": "2026-02-16 07:17:36",
+    "stats": {
+      "total_fetched": 100,
+      "total_processed": 100,
+      "skipped": 0,
+      "errors": 0
+    }
+  },
+  {
+    "timestamp": "2026-02-20T21:32:14.316675",
+    "date": "2026-02-20 21:32:14",
+    "stats": {
+      "total_fetched": 100,
+      "total_processed": 100,
+      "skipped": 0,
+      "duplicates": 0,
+      "errors": 0
+    }
+  }
+]

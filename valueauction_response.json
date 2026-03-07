@@ -1,0 +1,219 @@
+================================================================================
+ValueAuction API 응답 구조 분석 (첫 번째 물건)
+================================================================================
+
+전체 응답 JSON:
+{
+  "property": [
+    {
+      "area_floor": 166.72,
+      "area_lands": 78.27,
+      "extras": [],
+      "floors": [
+        {
+          "address_dong": [
+            "광주광역시",
+            "남구",
+            "봉선동",
+            "1158"
+          ],
+          "address_doro": [
+            "광주광역시",
+            "남구",
+            "제석로",
+            "89(봉선동)"
+          ],
+          "extra_size": "",
+          "index": "1",
+          "info": "1동의 건물의 표시\n\t광주광역시 남구 봉선동 1158\n\t[도로명 주소]\n\t광주광역시 남구 제석로 89(봉선동)\n\t철근콘크리트구조 (철근)콘크리트지붕 11층 공동주택(아파트) 근린생활시설 \n\t지2층 1719.4㎡ \n\t지1층 1912.69㎡ \n\t1층 76.88㎡ \n\t2층 563.38㎡ \n\t3층 563.38㎡ \n\t4층 563.38㎡ \n\t5층 563.38㎡ \n\t6층 563.38㎡ \n\t7층 563.38㎡ \n\t8층 563.38㎡ \n\t9층 563.38㎡ \n\t10층 563.38㎡ \n\t11층 387.29㎡ \n\n전유부분의 건물의 표시\n\t건물의 번호 :  제5층 제501호\n\t구조 : 철근콘크리트구조  166.72㎡ \n\n대지권의 목적인 토지의 표시\n\t토지의 표시 : 1. 광주광역시 남구 봉선동 1158\n\t           대 2526.1m²\n\t대지권의 종류 : 1. 소유권\n\t대지권의 비율 : 1. 2526.1 분의 78.27\n",
+          "size": 166.72,
+          "total_size": 166.72,
+          "type": "건물"
+        }
+      ],
+      "lands": [
+        {
+          "address_dong": [
+            "광주광역시",
+            "남구",
+            "봉선동",
+            "1158"
+          ],
+          "address_doro": [],
+          "extra_size": "",
+          "index": "1",
+          "info": "1동의 건물의 표시\n\t광주광역시 남구 봉선동 1158\n\t[도로명 주소]\n\t광주광역시 남구 제석로 89(봉선동)\n\t철근콘크리트구조 (철근)콘크리트지붕 11층 공동주택(아파트) 근린생활시설 \n\t지2층 1719.4㎡ \n\t지1층 1912.69㎡ \n\t1층 76.88㎡ \n\t2층 563.38㎡ \n\t3층 563.38㎡ \n\t4층 563.38㎡ \n\t5층 563.38㎡ \n\t6층 563.38㎡ \n\t7층 563.38㎡ \n\t8층 563.38㎡ \n\t9층 563.38㎡ \n\t10층 563.38㎡ \n\t11층 387.29㎡ \n\n전유부분의 건물의 표시\n\t건물의 번호 :  제5층 제501호\n\t구조 : 철근콘크리트구조  166.72㎡ \n\n대지권의 목적인 토지의 표시\n\t토지의 표시 : 1. 광주광역시 남구 봉선동 1158\n\t           대 2526.1m²\n\t대지권의 종류 : 1. 소유권\n\t대지권의 비율 : 1. 2526.1 분의 78.27\n",
+          "size": 78.27,
+          "total_size": 2526.1,
+          "type": "토지"
+        }
+      ],
+      "mul_num": 0,
+      "purpose": "아파트",
+      "type": "집합건물"
+    }
+  ],
+  "geo": {
+    "lat": 35.1222786,
+    "lng": 126.9067842
+  },
+  "summary": "\n1. 구분건물감정평가요항표\n1) 위치 및 주위환경\n본건은 광주광역시 남구 봉선동 소재 \"\"문성고등학교\"\" 북측 인근에 위치하며 주위는 아파트단지, 근린생활시설 등으로 형성된 주택지대입니다.\n\n2) 교통상황\n본건 단지까지 차량출입 가능하며, 인근에 시내버스승강장 등이 소재하고 있어 일반적인 교통상황은 보통인 편입니다.\n\n3) 건물의 구조\n철근콘크리트구조 (철근)콘크리트지붕 11층 건물 중 제5층 제501호로서,\r\n    외벽 : 석재 마감,\r\n    내벽 : 벽지 및 타일 마감 등,\r\n    창호 : 새시 창호 마감 등입니다.\n\n4) 이용상태\n아파트로 이용 중입니다.\n\n5) 설비내역\n일반적인 위생설비, 급·배수설비, 개별난방설비, 소화전설비, 화재탐지설비, 스프링클러설비, 승강기설비, 지하주차시설 등이 되어 있습니다.\n\n6) 토지의 형상 및 이용상태\n유사 사다리형의 완경사지로서 아파트 및 근린생활부지로 이용 중입니다.\n\n7) 인접 도로상태등\n동측으로 왕복 4차선 도로, 서측으로 왕복 2차선, 남측으로 소폭의 포장도로에 접합니다.\n\n8) 토지이용계획 및 제한상태\n도시지역, 제2종일반주거지역, 소로1류(폭 10m~12m)(접합), 중로2류(폭 15m~20m)(저촉), 상대보호구역<교육환경 보호에 관한 법률>, 준보전산지<산지관리법>입니다.\n\n9) 공부와의 차이\n없습니다.\n\n10) 기타참고사항(임대관례 및 기타)\n임대관계 : 미상입니다.\r\n기    타 : -\n\n",
+  "is_visible": true,
+  "bidding_date": 1770908400,
+  "mulbuns": [
+    {
+      "number": 1,
+      "id": "ab4df970-2a32-5bbe-93ff-1715a3a35ccb"
+    }
+  ],
+  "images": [
+    "https://storage.googleapis.com/value-auction-a745c.firebasestorage.app/images/ab4df970-2a32-5bbe-93ff-1715a3a35ccb/00.png",
+    "https://storage.googleapis.com/value-auction-a745c.firebasestorage.app/images/ab4df970-2a32-5bbe-93ff-1715a3a35ccb/01.png",
+    "https://storage.googleapis.com/value-auction-a745c.firebasestorage.app/images/ab4df970-2a32-5bbe-93ff-1715a3a35ccb/02.png",
+    "https://storage.googleapis.com/value-auction-a745c.firebasestorage.app/images/ab4df970-2a32-5bbe-93ff-1715a3a35ccb/03.png",
+    "https://storage.googleapis.com/value-auction-a745c.firebasestorage.app/images/ab4df970-2a32-5bbe-93ff-1715a3a35ccb/04.png",
+    "https://storage.googleapis.com/value-auction-a745c.firebasestorage.app/images/ab4df970-2a32-5bbe-93ff-1715a3a35ccb/05.png"
+  ],
+  "price": {
+    "appraised_price": 1830000000,
+    "lowestSellingPrice": 1830000000,
+    "lowest_selling_price": 1281000000,
+    "selling_price": 1310000000
+  },
+  "histories": [
+    {
+      "date": "2025.12.30 10:00",
+      "location": "입찰법정",
+      "price": 1830000000,
+      "status": "유찰",
+      "type": "매각기일",
+      "winning_info": null,
+      "winning_price": -1
+    },
+    {
+      "date": "2026.02.13 10:00",
+      "location": "입찰법정",
+      "price": 1281000000,
+      "status": "낙찰",
+      "type": "매각기일",
+      "winning_info": {
+        "bidders_count": 1,
+        "second_price": -1,
+        "winner": "",
+        "winning_price": 1310000000
+      },
+      "winning_price": 1310000000
+    },
+    {
+      "date": "2026.02.20 16:00",
+      "location": "광주지방법원 사법보좌관실",
+      "price": -1,
+      "status": "",
+      "type": "매각결정기일",
+      "winning_info": null,
+      "winning_price": -1
+    }
+  ],
+  "auction": {
+    "auction_date": "20250217",
+    "bidding_date": "20260213",
+    "case_date": "20250214",
+    "claim_amount": 1216796940,
+    "claim_deadline": "20250515",
+    "depart_contact": "062-239-1607(2층 민사집행과 지법253호)",
+    "depart_name": "경매7계",
+    "executor_contact": "062-222-4871",
+    "failure_count": 1,
+    "finished_cause": null,
+    "status": "낙찰",
+    "type": "임의"
+  },
+  "has_share_floor": false,
+  "notes": "",
+  "has_share_land": false,
+  "parcels": [
+    "1158"
+  ],
+  "case": {
+    "id": "ab4df970-2a32-5bbe-93ff-1715a3a35ccb",
+    "name": "2025타경32075",
+    "number": 1,
+    "site": "광주지방법원"
+  },
+  "badge": {
+    "area": 166.72,
+    "area_buildings": 166.72,
+    "area_buildings_extra": 0,
+    "area_lands": 78.27,
+    "category": "아파트",
+    "category_main": "주거용",
+    "category_sub": "아파트",
+    "failure_count": 1,
+    "geohash": "wy4pzcf",
+    "has_share": false,
+    "is_hard": false,
+    "pnu": "2915511500111580000",
+    "tags": [],
+    "view_count": 1
+  },
+  "bjd": {
+    "address1": "광주광역시",
+    "address2": "남구",
+    "address3": "봉선동",
+    "code": ""
+  },
+  "address": "광주광역시 남구 봉선동 1158 봉선동한국아델리움57  제5층 제501호",
+  "id": "ab4df970-2a32-5bbe-93ff-1715a3a35ccb",
+  "created_at": 1765850745,
+  "updated_at": 1771200482,
+  "new": "20251216",
+  "last_view_count_date": "20260212",
+  "today_view_count": 1,
+  "total_view_count": 1,
+  "is_valid": true,
+  "address_doro": "광주광역시 남구 제석로 89(봉선동)",
+  "address_dngi": {
+    "집합": {
+      "address": "광주광역시 남구 봉선동 1158 봉선동한국아델리움57 제5층 제501호"
+    }
+  },
+  "address_dong": "광주광역시 남구 봉선동 1158 봉선동한국아델리움57 제5층 제501호",
+  "is_onbid": false
+}
+
+
+================================================================================
+핵심 필드 추출
+================================================================================
+
+[case] 사건 정보:
+{
+  "id": "ab4df970-2a32-5bbe-93ff-1715a3a35ccb",
+  "name": "2025타경32075",
+  "number": 1,
+  "site": "광주지방법원"
+}
+
+[auction] 경매 정보:
+{
+  "auction_date": "20250217",
+  "bidding_date": "20260213",
+  "case_date": "20250214",
+  "claim_amount": 1216796940,
+  "claim_deadline": "20250515",
+  "depart_contact": "062-239-1607(2층 민사집행과 지법253호)",
+  "depart_name": "경매7계",
+  "executor_contact": "062-222-4871",
+  "failure_count": 1,
+  "finished_cause": null,
+  "status": "낙찰",
+  "type": "임의"
+}
+
+[badge] 배지 정보:
+  category: 아파트
+  area: 166.72
+  failure_count: 1
+
+[price] 가격 정보:
+예외 발생: unsupported format string passed to NoneType.__format__

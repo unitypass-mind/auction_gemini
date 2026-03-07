@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 기반 경매 낙찰가 예측 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1.1em;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+            background-color: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group select {
+            cursor: pointer;
+        }
+
+        .form-group small {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .input-with-prefix {
+            display: flex;
+            align-items: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .input-with-prefix:focus-within {
+            border-color: #667eea;
+        }
+
+        .input-prefix {
+            background: #f8f9fa;
+            padding: 15px;
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1em;
+            border-right: 2px solid #e0e0e0;
+        }
+
+        .input-with-prefix input {
+            flex: 1;
+            border: none !important;
+            padding: 15px;
+            font-size: 1em;
+        }
+
+        .input-with-prefix input:focus {
+            outline: none;
+            border: none !important;
+        }
+
+        /* 사건번호 복합 입력 행 */
+        .case-number-input {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        /* 연도 드롭다운: 고정 폭 독립 박스 */
+        .case-year-select {
+            flex-grow: 0 !important;
+            flex-shrink: 0 !important;
+            flex-basis: auto !important;
+            display: block;
+            width: 92px !important;
+            max-width: 92px !important;
+            box-sizing: border-box;
+            border: 2px solid #e0e0e0 !important;
+            border-radius: 10px;
+            background: #fff;
+            padding: 13px 2px 13px 12px;
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1em;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .case-year-select:focus {
+            border-color: #667eea !important;
+            outline: none;
+        }
+
+        /* 타경 + 입력 + 돋보기 박스 */
+        .case-input-area {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            display: flex;
+            align-items: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f8f9fa;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .case-input-area:focus-within {
+            border-color: #667eea;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .case-type-badge {
+            flex: 0 0 auto;
+            padding: 0 8px 0 14px;
+            font-weight: 700;
+            color: #444;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+
+        .case-input-area input[type="text"] {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            border: none !important;
+            outline: none !important;
+            background: transparent;
+            padding: 14px 8px;
+            font-size: 1em;
+            color: #333;
+            width: 0; /* flex가 크기 결정하도록 */
+        }
+
+        .case-input-area input[type="text"]::placeholder {
+            color: #bbb;
+        }
+
+        .case-search-btn {
+            flex: 0 0 auto;
+            border: none;
+            background: none;
+            padding: 0 14px;
+            cursor: pointer;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            transition: color 0.2s;
+        }
+
+        .case-search-btn:hover {
+            color: #667eea;
+        }
+
+        /* 자동완성 드롭다운 */
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover {
+            background: #f8f9fa;
+        }
+
+        .autocomplete-item-main {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 3px;
+        }
+
+        .autocomplete-item-sub {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .autocomplete-no-results {
+            padding: 15px;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .case-input-wrapper {
+            position: relative;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .result-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .result-item label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .result-item value {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white !important;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .highlight value {
+            color: white !important;
+            font-size: 1.5em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 AI 경매 예측</h1>
+            <p>법원 경매 낙찰가를 AI로 예측합니다</p>
+        </div>
+
+        <div class="content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('full')">전체 분석</button>
+                <button class="tab" onclick="switchTab('simple')">간단 예측</button>
+                <button class="tab" onclick="switchTab('accuracy')">📊 정확도</button>
+            </div>
+
+            <!-- 전체 분석 탭 -->
+            <div id="tab-full" class="tab-content active">
+                <form onsubmit="analyzeFull(event)">
+                    <div class="form-group">
+                        <label>사건번호</label>
+                        <div class="case-input-wrapper">
+                            <div class="case-number-input">
+                                <select id="case_year" class="case-year-select"></select>
+                                <div class="case-input-area">
+                                    <span class="case-type-badge">타경</span>
+                                    <input type="text"
+                                           id="case_no"
+                                           placeholder="사건번호를 입력해주세요."
+                                           oninput="handleCaseInput(this)"
+                                           onkeydown="handleKeyDown(event)"
+                                           inputmode="numeric"
+                                           autocomplete="off"
+                                           required>
+                                    <!-- 선택된 법원 정보 저장 (향후 중복 사건번호 구분용) -->
+                                    <input type="hidden" id="selected_site" value="">
+                                    <button type="submit" class="case-search-btn" title="검색">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                        </div>
+                        <small>예: 연도 2024 선택 → 579705 입력 → 2024타경579705 또는 검색하여 선택</small>
+                    </div>
+
+
+                    <button type="submit" class="btn">분석 시작</button>
+                </form>
+
+                <div class="loading" id="loading-full">
+                    <div class="spinner"></div>
+                    <p>분석 중입니다...</p>
+                </div>
+
+                <div class="error" id="error-full"></div>
+
+                <div class="result" id="result-full">
+                    <h2 class="result-title">분석 결과</h2>
+                    <div id="result-content-full"></div>
+                </div>
+            </div>
+
+            <!-- 간단 예측 탭 -->
+            <div id="tab-simple" class="tab-content">
+                <form onsubmit="predictSimple(event)">
+                    <div class="form-group">
+                        <label>감정가 (원)</label>
+                        <input type="text"
+                               id="start_price"
+                               placeholder="예: 300,000,000"
+                               required
+                               oninput="formatPriceInput(this)">
+                        <small>경매 물건의 감정가를 입력하세요 (천단위 콤마 자동 입력)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>물건종류</label>
+                        <select id="property_type_simple" required>
+                            <option value="">-- 선택하세요 --</option>
+                            <option value="아파트">아파트</option>
+                            <option value="다세대">다세대</option>
+                            <option value="오피스텔">오피스텔</option>
+                            <option value="단독주택">단독주택</option>
+                            <option value="상가">상가</option>
+                        </select>
+                        <small>경매 물건의 종류를 선택하세요</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>지역</label>
+                        <select id="region_simple" required>
+                            <option value="">-- 선택하세요 --</option>
+                            <option value="서울">서울</option>
+                            <option value="경기">경기</option>
+                            <option value="인천">인천</option>
+                            <option value="부산">부산</option>
+                            <option value="대구">대구</option>
+                            <option value="기타">기타</option>
+                        </select>
+                        <small>물건 소재지 지역을 선택하세요</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>면적 (㎡)</label>
+                        <input type="text"
+                               id="area_simple"
+                               placeholder="예: 85.5"
+                               required
+                               oninput="formatAreaInput(this)">
+                        <small>물건의 면적을 입력하세요 (제곱미터)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>경매 회차</label>
+                        <input type="number" id="auction_round_simple" placeholder="1" value="1" min="1" max="10">
+                        <small>현재 경매 회차 (1회차, 2회차 등)</small>
+                    </div>
+
+                    <button type="submit" class="btn">AI 예측하기</button>
+                </form>
+
+                <div class="loading" id="loading-simple">
+                    <div class="spinner"></div>
+                    <p>예측 중입니다...</p>
+                </div>
+
+                <div class="error" id="error-simple"></div>
+
+                <div class="result" id="result-simple">
+                    <h2 class="result-title">예측 결과</h2>
+                    <div id="result-content-simple"></div>
+                </div>
+            </div>
+
+            <!-- 정확도 대시보드 탭 -->
+            <div id="tab-accuracy" class="tab-content">
+                <div style="text-align:center; padding:20px;">
+                    <h2 style="color:#667eea; margin-bottom:10px;">🎯 AI 모델 정확도 분석</h2>
+                    <p style="color:#999;">예측 vs 실제 낙찰가 비교</p>
+                </div>
+
+                <div class="loading" id="loading-accuracy">
+                    <div class="spinner"></div>
+                    <p>데이터 로딩 중...</p>
+                </div>
+
+                <!-- 통계 요약 -->
+                <div id="stats-summary" style="display:none;">
+                    <h3 style="margin-bottom:20px; color:#333;">📈 전체 통계 (최근 30일)</h3>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-bottom:30px;">
+                        <div style="background:#f8f9fa; padding:20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:2em; font-weight:bold; color:#667eea;" id="stat-total">-</div>
+                            <div style="color:#999; margin-top:5px;">총 예측 건수</div>
+                        </div>
+                        <div style="background:#f8f9fa; padding:20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:2em; font-weight:bold; color:#28a745;" id="stat-verified">-</div>
+                            <div style="color:#999; margin-top:5px;">검증 완료</div>
+                        </div>
+                        <div style="background:#f8f9fa; padding:20px; border-radius:10px; text-align:center;">
+                            <div style="font-size:2em; font-weight:bold; color:#28a745;" id="stat-accuracy">-</div>
+                            <div style="color:#999; margin-top:5px;">평균 오차율 ⭐</div>
+                        </div>
+                    </div>
+
+                    <!-- 감정가 구간별 안내 (동적 업데이트) -->
+                    <div style="background:#e7f3ff; padding:20px; border-radius:10px; margin-bottom:30px; border-left:4px solid #667eea;">
+                        <h4 style="color:#333; margin-bottom:10px;">💡 감정가 구간별 예상 오차 <span id="stats-update-time" style="font-size:0.7em; font-weight:normal; color:#999;"></span></h4>
+                        <div id="price-range-stats" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; font-size:0.9em;">
+                            <div style="color:#999;">로딩 중...</div>
+                        </div>
+                        <p style="color:#999; font-size:0.85em; margin-top:10px; margin-bottom:0;">
+                            * 감정가 구간별 중위 오차금액입니다. 고액 물건은 절대 오차가 클 수 있으나 오차율은 낮습니다.
+                        </p>
+                    </div>
+
+                    <!-- 검증된 예측 목록 -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin:30px 0 20px 0;">
+                        <h3 style="margin:0; color:#333;">✅ 검증된 예측 (최근 20건)</h3>
+                        <button onclick="downloadVerifiedCSV()" class="btn" style="width:auto; padding:10px 20px; font-size:0.9em; background:#667eea;">
+                            📥 모델 재학습용 데이터 다운로드
+                        </button>
+                    </div>
+                    <div id="verified-list" style="margin-bottom:30px;"></div>
+
+                    <!-- 미검증 예측 -->
+                    <h3 style="margin:30px 0 20px 0; color:#333;">⏳ 검증 대기 중</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <p style="color:#999; margin:0;">실제 낙찰 결과를 입력하면 정확도를 추적할 수 있습니다</p>
+                        <button onclick="downloadUnverifiedCSV()" class="btn" style="width:auto; padding:10px 20px; font-size:0.9em; background:#28a745;">
+                            📥 CSV 다운로드
+                        </button>
+                    </div>
+                    <div id="unverified-list"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="footer">
+            AI 기반 경매 낙찰가 예측 시스템 v1.0.0
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // 탭 버튼 활성화
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 탭 컨텐츠 표시
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById('tab-' + tabName).classList.add('active');
+
+            // 정확도 탭일 경우 데이터 로드
+            if (tabName === 'accuracy') {
+                loadAccuracyData();
+            }
+        }
+
+        // 페이지 로드 시 연도 드롭다운 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initYearSelect();
+        });
+
+        // 연도 드롭다운 초기화 (현재 연도부터 2015년까지)
+        function initYearSelect() {
+            const sel = document.getElementById('case_year');
+            if (!sel) return;
+            const currentYear = new Date().getFullYear();
+            sel.innerHTML = '';
+            for (let y = currentYear; y >= 2015; y--) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                if (y === currentYear) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        }
+
+        // 자동완성 관련 변수
+        let searchTimeout = null;
+        let selectedIndex = -1;
+        let searchResults = [];
+
+        function formatCaseNumber(input) {
+            // 숫자만 입력 허용
+            input.value = input.value.replace(/[^0-9]/g, '');
+        }
+
+        function handleCaseInput(input) {
+            // 숫자만 입력 허용
+            input.value = input.value.replace(/[^0-9]/g, '');
+
+            // 기존 타이머 취소
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            const query = input.value.trim();
+
+            // 입력이 비어있거나 너무 짧으면 드롭다운 숨김
+            if (!query || query.length < 2) {
+                hideAutocomplete();
+                return;
+            }
+
+            // 500ms 대기 후 검색 (디바운싱)
+            searchTimeout = setTimeout(() => {
+                searchCaseNumbers(query);
+            }, 500);
+        }
+
+        async function searchCaseNumbers(query) {
+            try {
+                const year = document.getElementById('case_year').value;
+                const fullQuery = `${year}타경${query}`;
+
+                const response = await fetch(`/search-case?query=${encodeURIComponent(fullQuery)}`);
+                const result = await response.json();
+
+                if (result.success && result.results.length > 0) {
+                    searchResults = result.results;
+                    showAutocomplete(result.results);
+                } else {
+                    showNoResults();
+                }
+            } catch (error) {
+                console.error('검색 오류:', error);
+                hideAutocomplete();
+            }
+        }
+
+        function showAutocomplete(results) {
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            selectedIndex = -1;
+
+            dropdown.innerHTML = results.map((item, index) => `
+                <div class="autocomplete-item" onclick="selectCaseNumber(${index})" data-index="${index}">
+                    <div class="autocomplete-item-main">${item.case_no}</div>
+                    <div class="autocomplete-item-sub">${item.site || ''}</div>
+                </div>
+            `).join('');
+
+            dropdown.classList.add('show');
+        }
+
+        function showNoResults() {
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            dropdown.innerHTML = '<div class="autocomplete-no-results">검색 결과가 없습니다</div>';
+            dropdown.classList.add('show');
+        }
+
+        function hideAutocomplete() {
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            dropdown.classList.remove('show');
+            dropdown.innerHTML = '';
+            selectedIndex = -1;
+            searchResults = [];
+        }
+
+        function selectCaseNumber(index) {
+            // 인덱스 유효성 검사
+            if (typeof index !== 'number' || index < 0 || index >= searchResults.length) {
+                console.error('Invalid index:', index);
+                return;
+            }
+
+            // searchResults 배열에서 선택된 항목 가져오기
+            const selectedItem = searchResults[index];
+            const caseNo = selectedItem.case_no;
+            const site = selectedItem.site || '';
+
+            // "2024타경579705" 형식에서 연도와 숫자 부분 추출
+            const match = caseNo.match(/(\d{4})타경(\d+)/);
+            if (match) {
+                const year = match[1];
+                const number = match[2];
+
+                // 연도 선택
+                document.getElementById('case_year').value = year;
+
+                // 번호 입력
+                document.getElementById('case_no').value = number;
+
+                // 선택된 법원 정보 저장 (향후 중복 사건번호 구분용)
+                document.getElementById('selected_site').value = site;
+
+                // 디버깅 로그
+                console.log('선택된 물건:', caseNo, '법원:', site);
+            }
+
+            hideAutocomplete();
+        }
+
+        function handleKeyDown(event) {
+            const dropdown = document.getElementById('autocomplete-dropdown');
+
+            if (!dropdown.classList.contains('show')) {
+                return;
+            }
+
+            const items = dropdown.querySelectorAll('.autocomplete-item');
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection(items);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(items);
+            } else if (event.key === 'Enter') {
+                if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
+                    event.preventDefault();
+                    selectCaseNumber(selectedIndex);
+                }
+            } else if (event.key === 'Escape') {
+                hideAutocomplete();
+            }
+        }
+
+        function updateSelection(items) {
+            items.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.style.background = '#e7f3ff';
+                } else {
+                    item.style.background = '';
+                }
+            });
+        }
+
+        // 외부 클릭 시 자동완성 닫기
+        document.addEventListener('click', function(event) {
+            const wrapper = document.querySelector('.case-input-wrapper');
+            if (wrapper && !wrapper.contains(event.target)) {
+                hideAutocomplete();
+            }
+        });
+
+        function getCaseNumber() {
+            const year = document.getElementById('case_year').value;
+            const num  = document.getElementById('case_no').value.trim();
+            // 서버 format_case_number가 "YYYY타경XXXXXX" 형식을 그대로 받음
+            return year + '타경' + num;
+        }
+
+        function updateLawdCode() {
+            const courtSelect = document.getElementById('court_select');
+            const lawdCdInput = document.getElementById('lawd_cd');
+            lawdCdInput.value = courtSelect.value;
+        }
+
+        async function analyzeFull(event) {
+            event.preventDefault();
+
+            // 사건번호 가져오기 (연도 + 타경 + 번호)
+            const caseNo = getCaseNumber();
+            const numPart = document.getElementById('case_no').value.trim();
+
+            if (!numPart || numPart.length < 1) {
+                document.getElementById('error-full').textContent = '사건번호를 입력해주세요. (예: 579705)';
+                document.getElementById('error-full').classList.add('show');
+                return;
+            }
+
+            // UI 상태 변경
+            document.getElementById('loading-full').classList.add('show');
+            document.getElementById('result-full').classList.remove('show');
+            document.getElementById('error-full').classList.remove('show');
+
+            try {
+                // API 호출 (숫자만 전송, 서버에서 변환)
+                let url = `/auction?case_no=${encodeURIComponent(caseNo)}`;
+
+                // 선택된 법원 정보 추가 (중복 사건번호 구분용)
+                const selectedSite = document.getElementById('selected_site');
+                if (selectedSite && selectedSite.value) {
+                    url += `&site=${encodeURIComponent(selectedSite.value)}`;
+                }
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const detail = result.detail;
+                    const msg = typeof detail === 'object'
+                        ? (detail.message || detail.error || JSON.stringify(detail))
+                        : (detail || '서버 오류가 발생했습니다');
+                    throw new Error(msg);
+                }
+
+                // 결과 표시
+                displayFullResult(result.data);
+
+            } catch (error) {
+                document.getElementById('error-full').textContent = error.message;
+                document.getElementById('error-full').classList.add('show');
+            } finally {
+                document.getElementById('loading-full').classList.remove('show');
+            }
+        }
+
+        // 권리분석 HTML 생성 함수
+        function generateRightsAnalysisHTML(info) {
+            // 원본데이터에서 badge.tags 추출
+            const rawData = info['원본데이터'] || info.원본데이터;
+            if (!rawData || !rawData.badge || !rawData.badge.tags || rawData.badge.tags.length === 0) {
+                return '';
+            }
+
+            const tags = rawData.badge.tags;
+
+            // 중요한 권리사항 (빨간색 경고)
+            const criticalKeywords = ['대항력있는임차인', '선순위전세권', '가압류', '가처분', '가등기'];
+            // 주의 권리사항 (노란색 주의)
+            const warningKeywords = ['근저당권', '지상권', '유치권', '전세권'];
+
+            let tagHtml = '';
+            for (let tag of tags) {
+                let isCritical = criticalKeywords.some(keyword => tag.includes(keyword));
+                let isWarning = warningKeywords.some(keyword => tag.includes(keyword));
+
+                let bgColor, borderColor, textColor, icon;
+
+                if (isCritical) {
+                    bgColor = '#ffe7e7';
+                    borderColor = '#dc3545';
+                    textColor = '#721c24';
+                    icon = '⚠️';
+                } else if (isWarning) {
+                    bgColor = '#fff3cd';
+                    borderColor = '#ffc107';
+                    textColor = '#856404';
+                    icon = '⚡';
+                } else {
+                    bgColor = '#e7f3ff';
+                    borderColor = '#667eea';
+                    textColor = '#0066cc';
+                    icon = 'ℹ️';
+                }
+
+                tagHtml += `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:6px 12px;margin:4px;border-radius:5px;border-left:3px solid ${borderColor};font-size:0.9em;">${icon} ${tag}</span>`;
+            }
+
+            return `<div style="margin:15px 0;padding:15px;background:#f8f9fa;border-radius:8px;border:1px solid #dee2e6;">
+                <div style="font-weight:bold;color:#333;margin-bottom:10px;font-size:1.05em;">📋 권리분석</div>
+                <div style="line-height:1.8;">${tagHtml}</div>
+            </div>`;
+        }
+
+        function displayFullResult(data) {
+            const content = document.getElementById('result-content-full');
+            const info = data.auction_info;
+            const profit = data.profit_analysis;
+            const advAnalysis = data.advanced_analysis || {};
+
+            // 10억 초과 물건 경고 메시지
+            const isHighPrice = info.감정가_숫자 && info.감정가_숫자 > 1000000000;
+            const warningMessage = isHighPrice ? `
+                <div style="background:#fff3cd;border-left:4px solid #ffc107;padding:15px;margin:15px 0;border-radius:5px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:1.5em;">⚠️</span>
+                        <div>
+                            <strong style="color:#856404;">고액 물건 예측 불확실성 안내</strong>
+                            <p style="margin:5px 0 0 0;color:#856404;font-size:0.95em;">
+                                감정가 10억 초과 물건은 데이터 부족과 시장 변동성으로 인해
+                                <strong>예측 정확도가 낮을 수 있습니다</strong> (평균 오차율 약 13%).
+                                참고용으로만 활용하시기 바랍니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ` : '';
+
+            // 고급 분석 HTML 생성
+            let advancedHTML = '';
+            if (advAnalysis && Object.keys(advAnalysis).length > 0) {
+                const invest = advAnalysis.investment_score || {};
+                const aiConf = advAnalysis.ai_confidence || {};
+
+                // 투자 매력도 색상 매핑
+                const investColorMap = {
+                    'excellent': '#28a745',
+                    'good': '#5cb85c',
+                    'normal': '#ffc107',
+                    'low': '#ff8c00',
+                    'very_low': '#dc3545'
+                };
+                const investBgColorMap = {
+                    'excellent': '#d4edda',
+                    'good': '#dff0d8',
+                    'normal': '#fff3cd',
+                    'low': '#ffe5cc',
+                    'very_low': '#f8d7da'
+                };
+                const investColor = investColorMap[invest.color] || '#667eea';
+                const investBgColor = investBgColorMap[invest.color] || '#e7f3ff';
+
+                // 가격 데이터 준비
+                const startPrice = info.감정가_숫자 || info['감정가_숫자'] || 0;
+                const predictedPrice = data.predicted_price || 0;
+                const marketPrice = data.market_price || 0;
+                const lowestBidPrice = advAnalysis.lowest_bid_price || 0;
+                const lowestBidRatio = advAnalysis.lowest_bid_ratio || 0;
+                const predictedRatio = advAnalysis.predicted_ratio || 0;
+                // 경매회차: auction_info에서 가져오기 (다양한 필드명 시도)
+                let auctionRound = info.경매회차 || info['경매회차'] || info.round || info['round'] || 1;
+                // 문자열일 경우 숫자로 변환
+                if (typeof auctionRound === 'string') {
+                    auctionRound = parseInt(auctionRound) || 1;
+                }
+
+                // 0. 입찰 전략 추천 (최상단에 표시)
+                const strategy = advAnalysis.bidding_strategy;
+                if (strategy) {
+                    // 추천 타입별 색상 및 아이콘
+                    let strategyColor, strategyBgColor, strategyIcon, strategyTitle;
+                    if (strategy.recommendation === 'bid_now') {
+                        strategyColor = '#28a745';
+                        strategyBgColor = '#d4edda';
+                        strategyIcon = '✅';
+                        strategyTitle = '입찰 적정';
+                    } else if (strategy.recommendation === 'wait') {
+                        strategyColor = '#ff8c00';
+                        strategyBgColor = '#ffe5cc';
+                        strategyIcon = '⏳';
+                        strategyTitle = '대기 권장';
+                    } else {
+                        strategyColor = '#ffc107';
+                        strategyBgColor = '#fff3cd';
+                        strategyIcon = '⚠️';
+                        strategyTitle = '신중 검토';
+                    }
+
+                    advancedHTML += `
+                        <div style="margin:25px 0;padding:25px;background:${strategyBgColor};border-radius:12px;border-left:6px solid ${strategyColor};box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                            <div style="display:flex;align-items:center;margin-bottom:15px;">
+                                <span style="font-size:2em;margin-right:15px;">${strategyIcon}</span>
+                                <div style="flex:1;">
+                                    <h3 style="margin:0;color:${strategyColor};font-size:1.4em;font-weight:700;">${strategyTitle}</h3>
+                                    <p style="margin:5px 0 0 0;color:#666;font-size:0.95em;">AI 기반 입찰 전략 분석</p>
+                                </div>
+                            </div>
+                            <div style="padding:15px;background:white;border-radius:8px;border:2px dashed ${strategyColor};">
+                                <p style="margin:0;color:#333;font-size:1.1em;font-weight:600;line-height:1.6;">
+                                    ${strategy.message}
+                                </p>
+                            </div>
+                            ${strategy.wait_until_round ? `
+                                <div style="margin-top:15px;padding:12px;background:rgba(255,255,255,0.7);border-radius:6px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                        <span style="color:#666;font-weight:600;">현재 회차 최저가:</span>
+                                        <span style="color:#dc3545;font-weight:bold;">${strategy.current_minimum.toLocaleString()}원</span>
+                                    </div>
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                        <span style="color:#666;font-weight:600;">대기 권장 회차:</span>
+                                        <span style="color:#ff8c00;font-weight:bold;">${strategy.wait_until_round}회차</span>
+                                    </div>
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <span style="color:#666;font-weight:600;">예상 절감액:</span>
+                                        <span style="color:#28a745;font-weight:bold;font-size:1.1em;">약 ${strategy.potential_savings.toLocaleString()}원</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                // 1. 가격 비교 바 차트
+                if (startPrice > 0) {
+                    const maxPrice = Math.max(startPrice, predictedPrice, marketPrice, lowestBidPrice);
+                    const startWidth = (startPrice / maxPrice * 100).toFixed(1);
+                    const predictedWidth = (predictedPrice / maxPrice * 100).toFixed(1);
+                    const marketWidth = marketPrice > 0 ? (marketPrice / maxPrice * 100).toFixed(1) : 0;
+                    const lowestWidth = lowestBidPrice > 0 ? (lowestBidPrice / maxPrice * 100).toFixed(1) : 0;
+
+                    advancedHTML += `
+                        <div style="margin:25px 0;padding:20px;background:white;border-radius:10px;border:2px solid #e0e0e0;">
+                            <h3 style="margin:0 0 20px 0;color:#333;font-size:1.2em;">📊 가격 비교 분석</h3>
+
+                            <div style="margin-bottom:15px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                    <span style="color:#666;font-weight:600;min-width:100px;">감정가</span>
+                                    <span style="color:#333;font-weight:bold;">${startPrice.toLocaleString()}원 (100%)</span>
+                                </div>
+                                <div style="width:100%;height:30px;background:#f0f0f0;border-radius:5px;overflow:hidden;position:relative;">
+                                    <div style="width:${startWidth}%;height:100%;background:linear-gradient(90deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:white;font-weight:bold;font-size:0.9em;">100%</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:15px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                    <span style="color:#666;font-weight:600;min-width:100px;">AI 예측가</span>
+                                    <span style="color:#667eea;font-weight:bold;">${predictedPrice.toLocaleString()}원 (${(predictedPrice / startPrice * 100).toFixed(1)}%)</span>
+                                </div>
+                                <div style="width:100%;height:30px;background:#f0f0f0;border-radius:5px;overflow:hidden;position:relative;">
+                                    <div style="width:${predictedWidth}%;height:100%;background:#667eea;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:white;font-weight:bold;font-size:0.9em;">${(predictedPrice / startPrice * 100).toFixed(0)}%</div>
+                                </div>
+                            </div>
+
+                            ${lowestBidPrice > 0 ? `
+                                <div style="margin-bottom:15px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                        <span style="color:#666;font-weight:600;min-width:100px;">최저입찰가 (${auctionRound}회차)</span>
+                                        <span style="color:#dc3545;font-weight:bold;">${lowestBidPrice.toLocaleString()}원 (${Number(lowestBidRatio).toFixed(1)}%)</span>
+                                    </div>
+                                    <div style="width:100%;height:30px;background:#f0f0f0;border-radius:5px;overflow:hidden;position:relative;">
+                                        <div style="width:${lowestWidth}%;height:100%;background:#dc3545;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:white;font-weight:bold;font-size:0.9em;">${Number(lowestBidRatio).toFixed(0)}%</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${marketPrice > 0 ? `
+                                <div style="margin-bottom:0;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                        <span style="color:#666;font-weight:600;min-width:100px;">시세</span>
+                                        <span style="color:#28a745;font-weight:bold;">${marketPrice.toLocaleString()}원 (${(marketPrice / startPrice * 100).toFixed(1)}%)</span>
+                                    </div>
+                                    <div style="width:100%;height:30px;background:#f0f0f0;border-radius:5px;overflow:hidden;position:relative;">
+                                        <div style="width:${marketWidth}%;height:100%;background:#28a745;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:white;font-weight:bold;font-size:0.9em;">${(marketPrice / startPrice * 100).toFixed(0)}%</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                // 2. 경매 히스토리 타임라인 (회차별 최저가 추이)
+                if (auctionRound >= 1 && startPrice > 0) {
+                    // 회차별 최저가 비율 계산 (현재 회차는 실제 비율 사용, 과거는 표준 공식)
+                    const roundRatios = [];
+                    for (let round = 1; round <= auctionRound; round++) {
+                        let ratio;
+                        if (round === auctionRound && lowestBidRatio > 0) {
+                            // 현재 회차는 ValueAuction API에서 가져온 실제 최저입찰 비율 사용
+                            ratio = lowestBidRatio;
+                        } else {
+                            // 과거 회차는 표준 공식 사용
+                            if (round === 1) ratio = 100;
+                            else if (round === 2) ratio = 80;
+                            else if (round === 3) ratio = 64;
+                            else if (round === 4) ratio = 51.2;
+                            else if (round === 5) ratio = 40.96;
+                            else ratio = 40.96;
+                        }
+
+                        const price = Math.round(startPrice * ratio / 100);
+                        roundRatios.push({ round, ratio, price });
+                    }
+
+                    advancedHTML += `
+                        <div style="margin:25px 0;padding:20px;background:#f8f9fa;border-radius:10px;border:2px solid #e0e0e0;">
+                            <h3 style="margin:0 0 20px 0;color:#333;font-size:1.2em;">📈 경매 진행 히스토리</h3>
+                            <div style="display:flex;align-items:center;justify-content:space-between;position:relative;padding:20px 0;">
+                                ${roundRatios.map((item, index) => `
+                                    <div style="flex:1;text-align:center;position:relative;z-index:2;">
+                                        <div style="background:${index === auctionRound - 1 ? '#667eea' : '#e0e0e0'};width:50px;height:50px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:1.1em;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                                            ${item.round}회
+                                        </div>
+                                        <div style="font-weight:bold;color:#333;margin-bottom:3px;">${Number(item.ratio).toFixed(1)}%</div>
+                                        <div style="font-size:0.85em;color:#666;">${item.price.toLocaleString()}원</div>
+                                        ${index === auctionRound - 1 ? '<div style="margin-top:5px;color:#667eea;font-weight:bold;font-size:0.9em;">← 현재</div>' : ''}
+                                    </div>
+                                    ${index < roundRatios.length - 1 ? '<div style="flex:0.5;height:3px;background:#e0e0e0;margin:0 -10px;margin-bottom:60px;"></div>' : ''}
+                                `).join('')}
+                                <div style="flex:0.5;height:3px;background:#ffc107;margin:0 -10px;margin-bottom:60px;"></div>
+                                <div style="flex:1;text-align:center;position:relative;z-index:2;">
+                                    <div style="background:#ffc107;width:50px;height:50px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:0.9em;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                                        AI
+                                    </div>
+                                    <div style="font-weight:bold;color:#ffc107;margin-bottom:3px;">${Number(predictedRatio).toFixed(1)}%</div>
+                                    <div style="font-size:0.85em;color:#666;">${predictedPrice.toLocaleString()}원</div>
+                                    <div style="margin-top:5px;color:#ffc107;font-weight:bold;font-size:0.9em;">예상 →</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 3. 물건 분석 섹션 (투자 매력도)
+                advancedHTML += `
+                    <div style="margin:25px 0;padding:20px;background:${investBgColor};border-radius:10px;border-left:5px solid ${investColor};">
+                        <h3 style="margin:0 0 15px 0;color:#333;font-size:1.2em;">🎯 물건 분석</h3>
+
+                        <!-- 투자 매력도 게이지 -->
+                        <div style="margin-bottom:20px;">
+                            <div style="display:flex;align-items:center;gap:15px;margin-bottom:10px;">
+                                <div style="font-size:2.5em;font-weight:bold;color:${investColor};">${invest.total_score || 0}</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:bold;color:#333;font-size:1.1em;">${invest.level || '보통'}</div>
+                                    <div style="color:#666;font-size:0.9em;">투자 매력도 (0-100)</div>
+                                </div>
+                            </div>
+
+                            <!-- 게이지 바 -->
+                            <div style="width:100%;height:25px;background:#e0e0e0;border-radius:15px;overflow:hidden;position:relative;box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
+                                <div style="width:${invest.total_score || 0}%;height:100%;background:${investColor};transition:width 0.5s ease;position:relative;">
+                                    <div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:white;font-weight:bold;font-size:0.9em;">${invest.total_score || 0}</div>
+                                </div>
+                            </div>
+
+                            <!-- 게이지 레이블 -->
+                            <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:0.8em;color:#999;">
+                                <span>0 (매우 낮음)</span>
+                                <span>50 (보통)</span>
+                                <span>100 (매우 높음)</span>
+                            </div>
+                        </div>
+
+                        ${invest.details && invest.details.length > 0 ? `
+                            <div style="margin-top:15px;">
+                                <div style="font-weight:600;color:#333;margin-bottom:8px;">세부 점수:</div>
+                                ${invest.details.map(d => `
+                                    <div style="padding:12px;margin:8px 0;background:white;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                            <span style="color:#333;font-weight:600;">${d.category}</span>
+                                            <span style="color:${investColor};font-weight:bold;font-size:1.1em;">${d.score}/${d.max_score}점</span>
+                                        </div>
+                                        <div style="width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;">
+                                            <div style="width:${(d.score / d.max_score * 100)}%;height:100%;background:${investColor};"></div>
+                                        </div>
+                                        <div style="margin-top:6px;color:#666;font-size:0.9em;">${d.description}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                // AI 신뢰도 섹션
+                if (aiConf && aiConf.score) {
+                    const stars = '⭐'.repeat(aiConf.stars || 0) + '☆'.repeat(5 - (aiConf.stars || 0));
+                    advancedHTML += `
+                        <div style="margin:25px 0;padding:20px;background:#e7f3ff;border-radius:10px;border-left:5px solid #667eea;">
+                            <h3 style="margin:0 0 15px 0;color:#333;font-size:1.2em;">🤖 AI 모델 신뢰도</h3>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;">
+                                <div style="text-align:center;">
+                                    <div style="font-size:2em;font-weight:bold;color:#667eea;">${aiConf.score}점</div>
+                                    <div style="color:#666;font-size:0.9em;margin-top:5px;">신뢰도</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:1.5em;">${stars}</div>
+                                    <div style="color:#666;font-size:0.9em;margin-top:5px;">${aiConf.stars}/5 stars</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:1.5em;font-weight:bold;color:#667eea;">${aiConf.training_samples.toLocaleString()}</div>
+                                    <div style="color:#666;font-size:0.9em;margin-top:5px;">훈련 샘플</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:1.5em;font-weight:bold;color:#28a745;">${aiConf.avg_error_rate}%</div>
+                                    <div style="color:#666;font-size:0.9em;margin-top:5px;">평균 오차율</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:15px;padding:10px;background:white;border-radius:5px;text-align:center;">
+                                <span style="color:#667eea;font-weight:600;">모델 버전: ${aiConf.model_version}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            content.innerHTML = `
+                <div class="result-item">
+                    <label>사건번호</label>
+                    <value>${info.사건번호}</value>
+                </div>
+                <div class="result-item">
+                    <label>소재지</label>
+                    <value>${info.소재지 || info.위치 || '정보 없음'}</value>
+                </div>
+                ${info.물건종류 ? `<div class="result-item">
+                    <label>물건종류</label>
+                    <value>${info.물건종류}</value>
+                </div>` : ''}
+                <div class="result-item">
+                    <label>면적</label>
+                    <value>${info.면적}</value>
+                </div>
+                <div class="result-item">
+                    <label>감정가</label>
+                    <value>${info.감정가}</value>
+                </div>
+                <div class="result-item highlight">
+                    <label>AI 예측 낙찰가</label>
+                    <value>${data.predicted_price_formatted}</value>
+                </div>
+                <div class="result-item">
+                    <label>실거래가</label>
+                    <value>${data.market_price_formatted}</value>
+                </div>
+                ${data.real_transaction_note ? `<div style="background:#e7f3ff;padding:12px;margin:10px 0;border-left:3px solid #667eea;border-radius:5px;font-size:0.9em;color:#0066cc;">
+                    ℹ️ ${data.real_transaction_note}
+                </div>` : ''}
+                <div class="result-item ${profit.예상수익 > 0 ? 'highlight' : ''}">
+                    <label>예상 수익</label>
+                    <value>${profit.예상수익.toLocaleString()}원</value>
+                </div>
+                <div class="result-item">
+                    <label>예상 수익률</label>
+                    <value>${profit.예상수익률}%</value>
+                </div>
+                ${data.model_used ? '<p style="margin-top:15px;color:#667eea;">✓ AI 모델 사용</p>' : '<p style="margin-top:15px;color:#999;">기본 계산식 사용</p>'}
+                ${info.데이터소스 ? `<p style="margin-top:10px;color:#999;font-size:0.9em;">📊 ${info.데이터소스}</p>` : ''}
+                ${info.note ? `<p style="margin-top:5px;padding:10px;background:#fff3cd;border-left:3px solid #ffc107;border-radius:5px;font-size:0.9em;">ℹ️ ${info.note}</p>` : ''}
+                ${warningMessage}
+                ${advancedHTML}
+            `;
+
+            // 권리분석 섹션 추가 (감정가 다음에 삽입)
+            const rightsHTML = generateRightsAnalysisHTML(info);
+            if (rightsHTML) {
+                // 감정가 다음에 권리분석 섹션 삽입
+                const items = content.querySelectorAll('.result-item');
+                for (let i = 0; i < items.length; i++) {
+                    const label = items[i].querySelector('label');
+                    if (label && label.textContent === '감정가') {
+                        // 감정가 div 다음에 권리분석 HTML 삽입
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = rightsHTML;
+                        items[i].insertAdjacentElement('afterend', tempDiv.firstChild);
+                        break;
+                    }
+                }
+            }
+
+            document.getElementById('result-full').classList.add('show');
+        }
+
+        // 감정가 입력 포맷팅 (천단위 콤마)
+        function formatPriceInput(input) {
+            // 숫자만 추출
+            let value = input.value.replace(/[^\d]/g, '');
+
+            // 빈 값이면 그대로 반환
+            if (!value) {
+                input.value = '';
+                return;
+            }
+
+            // 숫자를 천단위 콤마로 포맷팅
+            const formatted = parseInt(value).toLocaleString('ko-KR');
+            input.value = formatted;
+        }
+
+        // 면적 입력 포맷팅 (소수점 허용)
+        function formatAreaInput(input) {
+            // 숫자와 소수점만 허용
+            let value = input.value.replace(/[^\d.]/g, '');
+
+            // 소수점이 2개 이상이면 마지막 것만 유지
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+
+            input.value = value;
+        }
+
+        async function predictSimple(event) {
+            event.preventDefault();
+
+            // 콤마를 제거한 숫자만 추출
+            const startPriceRaw = document.getElementById('start_price').value.replace(/[^\d]/g, '');
+            const propertyType = document.getElementById('property_type_simple').value;
+            const region = document.getElementById('region_simple').value;
+            const areaRaw = document.getElementById('area_simple').value;
+            const auctionRound = document.getElementById('auction_round_simple').value;
+
+            // 유효성 검사
+            if (!startPriceRaw || parseInt(startPriceRaw) <= 0) {
+                document.getElementById('error-simple').textContent = '감정가를 올바르게 입력해주세요';
+                document.getElementById('error-simple').classList.add('show');
+                return;
+            }
+
+            if (!areaRaw || parseFloat(areaRaw) <= 0) {
+                document.getElementById('error-simple').textContent = '면적을 올바르게 입력해주세요';
+                document.getElementById('error-simple').classList.add('show');
+                return;
+            }
+
+            // UI 상태 변경
+            document.getElementById('loading-simple').classList.add('show');
+            document.getElementById('result-simple').classList.remove('show');
+            document.getElementById('error-simple').classList.remove('show');
+
+            try {
+                let url = `/predict?start_price=${startPriceRaw}`;
+                url += `&property_type=${encodeURIComponent(propertyType)}`;
+                url += `&region=${encodeURIComponent(region)}`;
+                url += `&area=${areaRaw}`;
+                url += `&auction_round=${auctionRound}`;
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || '서버 오류가 발생했습니다');
+                }
+
+                // 결과 표시
+                displaySimpleResult(result);
+
+            } catch (error) {
+                document.getElementById('error-simple').textContent = error.message;
+                document.getElementById('error-simple').classList.add('show');
+            } finally {
+                document.getElementById('loading-simple').classList.remove('show');
+            }
+        }
+
+        function displaySimpleResult(data) {
+            const content = document.getElementById('result-content-simple');
+
+            // 10억 초과 물건 경고 메시지
+            const isHighPrice = data.start_price > 1000000000;
+            const warningMessage = isHighPrice ? `
+                <div style="background:#fff3cd;border-left:4px solid #ffc107;padding:15px;margin:15px 0;border-radius:5px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:1.5em;">⚠️</span>
+                        <div>
+                            <strong style="color:#856404;">고액 물건 예측 불확실성 안내</strong>
+                            <p style="margin:5px 0 0 0;color:#856404;font-size:0.95em;">
+                                감정가 10억 초과 물건은 데이터 부족과 시장 변동성으로 인해
+                                <strong>예측 정확도가 낮을 수 있습니다</strong> (평균 오차율 약 13%).
+                                참고용으로만 활용하시기 바랍니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ` : '';
+
+            content.innerHTML = `
+                <div class="result-item">
+                    <label>감정가</label>
+                    <value>${data.start_price_formatted || data.start_price.toLocaleString() + '원'}</value>
+                </div>
+                ${data.property_type ? `<div class="result-item">
+                    <label>물건종류</label>
+                    <value>${data.property_type}</value>
+                </div>` : ''}
+                ${data.region ? `<div class="result-item">
+                    <label>지역</label>
+                    <value>${data.region}</value>
+                </div>` : ''}
+                ${data.area ? `<div class="result-item">
+                    <label>면적</label>
+                    <value>${data.area}㎡</value>
+                </div>` : ''}
+                <div class="result-item">
+                    <label>경매 회차</label>
+                    <value>${data.auction_round}회</value>
+                </div>
+                <div class="result-item highlight">
+                    <label>AI 예측 낙찰가</label>
+                    <value>${data.predicted_price_formatted}</value>
+                </div>
+                <div class="result-item highlight">
+                    <label>💰 예상 수익</label>
+                    <value>${data.expected_profit_formatted}</value>
+                </div>
+                <div class="result-item">
+                    <label>수익률</label>
+                    <value>${data.profit_rate_formatted}</value>
+                </div>
+                ${data.model_used ? `<p style="margin-top:15px;color:#667eea;">✓ ${data.prediction_mode || 'AI 모델 사용'}</p>` : '<p style="margin-top:15px;color:#999;">기본 계산식 사용</p>'}
+                ${data.features_count ? `<p style="margin-top:5px;color:#999;font-size:0.9em;">📊 ${data.features_count}개 특성 분석 완료</p>` : ''}
+                ${warningMessage}
+            `;
+
+            document.getElementById('result-simple').classList.add('show');
+        }
+
+        // 정확도 데이터 로드
+        async function loadAccuracyData() {
+            const loading = document.getElementById('loading-accuracy');
+            const statsDiv = document.getElementById('stats-summary');
+
+            loading.classList.add('show');
+            statsDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/accuracy');
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error('데이터 로드 실패');
+                }
+
+                // 통계 업데이트
+                const stats = data.stats;
+                document.getElementById('stat-total').textContent = stats.total_predictions || 0;
+                document.getElementById('stat-verified').textContent = stats.verified_predictions || 0;
+                document.getElementById('stat-accuracy').textContent = `${stats.avg_error_rate || 0}%`;
+
+                // 검증된 예측 목록
+                displayVerifiedList(data.recent_verified);
+
+                // 미검증 예측 표시
+                displayUnverifiedList(data.unverified_samples, data.unverified_count);
+
+                statsDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('정확도 데이터 로드 실패:', error);
+                statsDiv.innerHTML = '<p style="color:#dc3545; text-align:center; padding:40px;">데이터 로드에 실패했습니다</p>';
+                statsDiv.style.display = 'block';
+            } finally {
+                loading.classList.remove('show');
+            }
+
+            // 구간별 통계도 로드
+            loadPriceRangeStats();
+        }
+
+        async function loadPriceRangeStats() {
+            const container = document.getElementById('price-range-stats');
+            const updateTimeEl = document.getElementById('stats-update-time');
+
+            try {
+                const response = await fetch('/price-range-stats');
+                const result = await response.json();
+
+                if (!result.success || !result.data) {
+                    throw new Error('통계 로드 실패');
+                }
+
+                const data = result.data;
+
+                // 업데이트 시간 표시
+                if (updateTimeEl && data.last_updated) {
+                    updateTimeEl.textContent = `(${data.last_updated} 업데이트)`;
+                }
+
+                // 구간별 통계 표시
+                if (data.price_ranges && data.price_ranges.length > 0) {
+                    container.innerHTML = data.price_ranges.map(range => {
+                        const median = Math.round(range.median_error_amount / 10000); // 만원 단위
+                        return `<div style="color:#666;">📊 ${range.range}: ±${median}만원</div>`;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div style="color:#999;">통계 데이터가 없습니다</div>';
+                }
+
+            } catch (error) {
+                console.error('구간별 통계 로드 실패:', error);
+                container.innerHTML = '<div style="color:#dc3545;">통계 로드 실패</div>';
+            }
+        }
+
+        function displayVerifiedList(items) {
+            const container = document.getElementById('verified-list');
+
+            if (!items || items.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">검증된 예측이 없습니다</p>';
+                return;
+            }
+
+            // 전역 변수에 저장 (CSV 다운로드용)
+            window.verifiedItems = items;
+
+            container.innerHTML = items.map(item => `
+                <div class="result-item" style="margin-bottom:15px;">
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
+                            <span style="font-weight:600; font-size:1.1em; color:#667eea;">${formatCaseNo(item.사건번호 || item.case_no || 'N/A')}</span>
+                        </div>
+                        <div style="font-size:0.9em; color:#666; margin-bottom:3px;">
+                            ${item.물건종류 || '아파트'} | ${item.지역 || ''} | ${item.면적 ? item.면적.toFixed(2) + '㎡' : ''}
+                        </div>
+                        <div style="font-size:0.9em; color:#666;">
+                            감정가: ${(item.감정가 || 0).toLocaleString()}원
+                            | 예측: ${(item.predicted_price || 0).toLocaleString()}원
+                            | 실제: ${(item.actual_price || 0).toLocaleString()}원
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:1.2em; font-weight:bold; color:${item.error_rate < 5 ? '#28a745' : item.error_rate < 10 ? '#ffc107' : '#dc3545'};">
+                            ${(item.error_rate || 0).toFixed(2)}%
+                        </div>
+                        <div style="font-size:0.85em; color:#999;">오차율</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayUnverifiedList(items, totalCount) {
+            const container = document.getElementById('unverified-list');
+
+            if (!items || items.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">검증 대기 중인 예측이 없습니다</p>';
+                return;
+            }
+
+            // 전역 변수에 저장 (CSV 다운로드용)
+            window.unverifiedItems = items;
+
+            const header = totalCount > items.length
+                ? `<p style="color:#666; margin-bottom:10px;">총 ${totalCount}건 중 ${items.length}건 표시</p>`
+                : '';
+
+            container.innerHTML = header + items.map((item, index) => `
+                <div class="result-item" style="margin-bottom:15px; background:#fff3cd; display:block; padding:20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                        <div style="flex:1;">
+                            <div style="font-weight:600; margin-bottom:5px;">${formatCaseNo(item.사건번호 || item.case_no || 'N/A')}</div>
+                            <div style="font-size:0.9em; color:#666;">
+                                감정가: ${(item.감정가 || 0).toLocaleString()}원
+                                | 예측: ${(item.predicted_price || 0).toLocaleString()}원
+                            </div>
+                        </div>
+                        <div style="color:#856404; font-size:0.9em;">
+                            ${new Date(item.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+
+                    <!-- 입력 폼 -->
+                    <div style="display:flex; gap:10px; align-items:end;" id="verify-form-${index}">
+                        <div style="flex:1;">
+                            <label style="display:block; margin-bottom:5px; font-size:0.9em; color:#666;">실제 낙찰가 (원)</label>
+                            <input type="text"
+                                   id="actual-price-${index}"
+                                   placeholder="예: 245,000,000"
+                                   oninput="formatPriceInput(this)"
+                                   style="width:100%; padding:10px; border:2px solid #ffc107; border-radius:5px; font-size:0.9em;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="display:block; margin-bottom:5px; font-size:0.9em; color:#666;">낙찰일자</label>
+                            <input type="date"
+                                   id="actual-date-${index}"
+                                   style="width:100%; padding:10px; border:2px solid #ffc107; border-radius:5px; font-size:0.9em;">
+                        </div>
+                        <button onclick="verifyPrediction('${item.case_no}', ${index})"
+                                style="padding:10px 20px; background:#28a745; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; white-space:nowrap;">
+                            ✅ 검증
+                        </button>
+                    </div>
+
+                    <!-- 검증 결과 메시지 -->
+                    <div id="verify-result-${index}" style="margin-top:10px; display:none; padding:10px; border-radius:5px;"></div>
+                </div>
+            `).join('');
+        }
+
+        // 예측 검증 함수
+        async function verifyPrediction(caseNo, index) {
+            const actualPriceRaw = document.getElementById(`actual-price-${index}`).value.replace(/[^\d]/g, '');
+            const actualDate = document.getElementById(`actual-date-${index}`).value;
+            const resultDiv = document.getElementById(`verify-result-${index}`);
+
+            if (!actualPriceRaw || parseInt(actualPriceRaw) <= 0) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#fee';
+                resultDiv.style.color = '#c33';
+                resultDiv.textContent = '실제 낙찰가를 올바르게 입력해주세요';
+                return;
+            }
+
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#e7f3ff';
+                resultDiv.style.color = '#0066cc';
+                resultDiv.textContent = '검증 중...';
+
+                let url = `/verify-result?case_no=${encodeURIComponent(caseNo)}&actual_price=${actualPriceRaw}`;
+                if (actualDate) {
+                    url += `&actual_date=${actualDate}`;
+                }
+
+                const response = await fetch(url, { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    resultDiv.style.background = '#d4edda';
+                    resultDiv.style.color = '#155724';
+                    resultDiv.textContent = `✅ 검증 완료! 실제 낙찰가: ${parseInt(actualPriceRaw).toLocaleString()}원`;
+
+                    // 2초 후 정확도 데이터 새로고침
+                    setTimeout(() => {
+                        loadAccuracyData();
+                    }, 2000);
+                } else {
+                    throw new Error(result.detail || '검증 실패');
+                }
+            } catch (error) {
+                resultDiv.style.background = '#fee';
+                resultDiv.style.color = '#c33';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+            }
+        }
+
+        // 미검증 예측 CSV 다운로드
+        function downloadUnverifiedCSV() {
+            if (!window.unverifiedItems || window.unverifiedItems.length === 0) {
+                alert('다운로드할 미검증 예측이 없습니다');
+                return;
+            }
+
+            // CSV 생성
+            let csv = '사건번호,실제낙찰가,낙찰일자\n';
+            window.unverifiedItems.forEach(item => {
+                const caseNo = item.사건번호 || item.case_no;
+                csv += `${caseNo},,\n`;
+            });
+
+            // BOM 추가 (Excel에서 한글 깨짐 방지)
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', `unverified_predictions_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 사건번호 포맷팅 함수
+        function formatCaseNo(caseNo) {
+            if (!caseNo) return '';
+
+            // 이미 "YYYY타경XXXXXX" 형식이면 그대로 반환
+            if (/^\d{4}타경\d+$/.test(caseNo)) {
+                return caseNo;
+            }
+
+            // "타경XXXXXX" 형식이면 연도 추가 (현재 연도 사용)
+            if (/^타경\d+$/.test(caseNo)) {
+                const year = new Date().getFullYear();
+                return `${year}${caseNo}`;
+            }
+
+            // 그 외의 경우 그대로 반환
+            return caseNo;
+        }
+
+        // 검증된 예측 CSV 다운로드 (모델 재학습용)
+        function downloadVerifiedCSV() {
+            if (!window.verifiedItems || window.verifiedItems.length === 0) {
+                alert('다운로드할 검증된 예측이 없습니다');
+                return;
+            }
+
+            // CSV 헤더 - 모델 학습에 필요한 모든 필드
+            let csv = '사건번호,물건번호,감정가,물건종류,지역,면적,경매회차,입찰자수,예측가,실제낙찰가,오차금액,오차율,낙찰일자\n';
+
+            window.verifiedItems.forEach(item => {
+                const row = [
+                    item.사건번호 || item.case_no || '',
+                    item.물건번호 || '',
+                    item.감정가 || 0,
+                    item.물건종류 || '',
+                    item.지역 || '',
+                    item.면적 || 0,
+                    item.경매회차 || 1,
+                    item.입찰자수 || 0,
+                    item.predicted_price || 0,
+                    item.actual_price || 0,
+                    item.error_amount || 0,
+                    item.error_rate || 0,
+                    item.actual_date || ''
+                ].map(val => {
+                    // 콤마가 포함된 값은 따옴표로 감싸기
+                    if (typeof val === 'string' && val.includes(',')) {
+                        return `"${val}"`;
+                    }
+                    return val;
+                });
+
+                csv += row.join(',') + '\n';
+            });
+
+            // BOM 추가 (Excel에서 한글 깨짐 방지)
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', `verified_training_data_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

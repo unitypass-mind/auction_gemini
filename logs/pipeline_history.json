@@ -1,0 +1,127 @@
+[
+  {
+    "timestamp": "2026-02-12T20:37:50.714626",
+    "date": "2026-02-12 20:37:50",
+    "results": {
+      "success": true,
+      "total_elapsed": 33.492780923843384,
+      "steps": [
+        {
+          "step": "2. 모델 재학습",
+          "success": true,
+          "elapsed": 1.584618330001831
+        },
+        {
+          "step": "3. 전체 재예측",
+          "success": true,
+          "elapsed": 31.765276670455933
+        },
+        {
+          "step": "4. 구간별 분석",
+          "success": true,
+          "elapsed": 0.14145946502685547
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-02-12T20:44:52.940369",
+    "date": "2026-02-12 20:44:52",
+    "results": {
+      "success": true,
+      "total_elapsed": 37.50929641723633,
+      "steps": [
+        {
+          "step": "2. 모델 재학습",
+          "success": true,
+          "elapsed": 1.5829031467437744
+        },
+        {
+          "step": "3. 전체 재예측",
+          "success": true,
+          "elapsed": 31.713688135147095
+        },
+        {
+          "step": "4. 구간별 분석",
+          "success": true,
+          "elapsed": 0.1437520980834961
+        },
+        {
+          "step": "5. 서버 모델 리로드",
+          "success": true,
+          "elapsed": 4.067047119140625
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-02-16T06:53:28.005253",
+    "date": "2026-02-16 06:53:28",
+    "results": {
+      "success": true,
+      "total_elapsed": 39.90122604370117,
+      "steps": [
+        {
+          "step": "2. 이상치 제거",
+          "success": true,
+          "elapsed": 0.2827780246734619
+        },
+        {
+          "step": "3. 모델 재학습",
+          "success": true,
+          "elapsed": 2.323943614959717
+        },
+        {
+          "step": "4. 전체 재예측",
+          "success": true,
+          "elapsed": 33.101093769073486
+        },
+        {
+          "step": "5. 구간별 분석",
+          "success": true,
+          "elapsed": 0.16763091087341309
+        },
+        {
+          "step": "6. 서버 모델 리로드",
+          "success": false,
+          "elapsed": 4.023550748825073
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-02-19T18:15:04.648053",
+    "date": "2026-02-19 18:15:04",
+    "results": {
+      "success": true,
+      "total_elapsed": 90.2703173160553,
+      "steps": [
+        {
+          "step": "2. 이상치 제거",
+          "success": true,
+          "elapsed": 0.14706087112426758
+        },
+        {
+          "step": "3. 모델 재학습",
+          "success": true,
+          "elapsed": 32.35984015464783
+        },
+        {
+          "step": "4. 전체 재예측",
+          "success": true,
+          "elapsed": 52.56058716773987
+        },
+        {
+          "step": "5. 구간별 분석",
+          "success": true,
+          "elapsed": 0.15096807479858398
+        },
+        {
+          "step": "6. 서버 모델 리로드",
+          "success": true,
+          "elapsed": 5.047466993331909
+        }
+      ]
+    }
+  }
+]

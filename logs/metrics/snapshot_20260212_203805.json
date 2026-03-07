@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-02-12T20:38:05.105244",
+  "date": "2026-02-12 20:38:05",
+  "total_predictions": 1210,
+  "avg_error_rate": 2.7632,
+  "avg_error_amount": 35534574,
+  "min_error_rate": 0.0012,
+  "max_error_rate": 149.1295,
+  "price_ranges": {
+    "10억 초과": {
+      "count": 60,
+      "avg_error_rate": 17.8319
+    },
+    "1억 이하": {
+      "count": 185,
+      "avg_error_rate": 2.3076
+    },
+    "1억~3억": {
+      "count": 681,
+      "avg_error_rate": 1.8708
+    },
+    "3억~5억": {
+      "count": 126,
+      "avg_error_rate": 2.7836
+    },
+    "5억~10억": {
+      "count": 158,
+      "avg_error_rate": 1.4044
+    }
+  }
+}

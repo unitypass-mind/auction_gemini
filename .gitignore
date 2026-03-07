@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 환경 변수
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 모델 파일 (용량이 큰 경우)
+# models/*.pkl
+
+# 데이터 파일
+# data/*.csv
+
+# 로그
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Windows 문제 파일
+.shop.read.indexing
+nul
+
+# Firebase 및 민감한 키 파일
+firebase-service-account.json
+google-services.json
+keys/*.pem
+*.pem
+
+# 데이터베이스 파일 (용량 큼)
+*.db
+*.sqlite
+*.sqlite3
+
+# 백업 파일
+*.backup
+*.bak
+*_backup_*
+
+# 결과 파일
+results_*.csv
+sample_results.csv
