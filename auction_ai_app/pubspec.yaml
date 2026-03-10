@@ -1,0 +1,65 @@
+name: auction_ai_app
+description: AI 기반 경매 낙찰가 예측 모바일 앱
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.6
+
+  # 상태 관리
+  provider: ^6.1.1
+
+  # HTTP 통신
+  dio: ^5.4.0
+
+  # 로컬 저장소
+  shared_preferences: ^2.2.2
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_messaging: ^14.7.10
+  firebase_auth: ^4.16.0
+
+  # JWT 디코딩
+  jwt_decoder: ^2.0.1
+
+  # 이미지 캐싱
+  cached_network_image: ^3.3.1
+
+  # 날짜 포맷
+  intl: ^0.18.1
+
+  # URL 런처
+  url_launcher: ^6.2.3
+
+  # 로딩 인디케이터
+  flutter_spinkit: ^5.2.0
+
+  # 토스트 메시지
+  fluttertoast: ^8.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+
+  # assets:
+  #   - images/
+  #   - icons/
+
+  # fonts:
+  #   - family: NotoSansKR
+  #     fonts:
+  #       - asset: fonts/NotoSansKR-Regular.ttf
+  #       - asset: fonts/NotoSansKR-Bold.ttf
+  #         weight: 700

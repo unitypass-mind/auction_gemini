@@ -3454,6 +3454,26 @@ async def register_user(user_data: UserRegister):
 
             logger.info(f"신규 사용자 등록: {user_data.email} (ID={user_id})")
 
+            # JWT 토큰 생성 (로그인과 동일)
+            token_data = {
+                "user_id": user_id,
+                "email": user_data.email
+            }
+
+            access_token = auth.create_access_token(token_data)
+            refresh_token = auth.create_refresh_token(token_data)
+
+            # Refresh Token을 DB에 저장
+            token_hash = auth.hash_password(refresh_token)
+            expires_at = datetime.utcnow() + timedelta(days=auth.REFRESH_TOKEN_EXPIRE_DAYS)
+
+            cursor.execute("""
+                INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+                VALUES (?, ?, ?)
+            """, (user_id, token_hash, expires_at))
+
+            conn.commit()
+
             return {
                 "success": True,
                 "message": "회원가입이 완료되었습니다",
@@ -3461,7 +3481,9 @@ async def register_user(user_data: UserRegister):
                     "id": user_id,
                     "email": user_data.email,
                     "name": user_data.name
-                }
+                },
+                "access_token": access_token,
+                "refresh_token": refresh_token
             }
 
         except sqlite3.IntegrityError:
