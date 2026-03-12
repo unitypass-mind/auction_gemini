@@ -125,14 +125,48 @@ def test_my_info(token):
         print(f"오류: {e}")
 
 def test_search():
-    """경매 검색 테스트 (인증 불필요)"""
+    """경매 검색 테스트 (사건번호 검색)"""
     print("\n" + "=" * 60)
-    print("5. 경매 검색 테스트")
+    print("5. 경매 검색 테스트 (사건번호)")
     print("=" * 60)
 
     try:
+        # 사건번호로 검색 (스크린샷에 있던 번호)
         params = {
-            "keyword": "서울",
+            "query": "2024타경579705",
+            "limit": 5
+        }
+        response = requests.get(
+            f"{BASE_URL}/search-case",
+            params=params,
+            timeout=10
+        )
+        print(f"상태 코드: {response.status_code}")
+        data = response.json()
+
+        print(f"응답 데이터: {json.dumps(data, ensure_ascii=False, indent=2)}")
+        print(f"검색 결과 수: {data.get('count', 0)}개")
+
+        if data.get('count', 0) > 0:
+            print("[OK] Auction search successful!")
+            if data.get('results'):
+                print(f"첫 번째 결과: {data['results'][0]}")
+        else:
+            print("[INFO] No search results (ValueAuction API may have no data for this case)")
+
+    except Exception as e:
+        print(f"오류: {e}")
+
+def test_search_local():
+    """경매 검색 테스트 (로컬 DB - 지역 필터)"""
+    print("\n" + "=" * 60)
+    print("6. 경매 검색 테스트 (로컬 DB - 지역 필터)")
+    print("=" * 60)
+
+    try:
+        # 지역으로 검색
+        params = {
+            "region": "서울",
             "limit": 5
         }
         response = requests.get(
@@ -142,13 +176,20 @@ def test_search():
         )
         print(f"상태 코드: {response.status_code}")
         data = response.json()
-        print(f"검색 결과 수: {data.get('count', 0)}개")
+
+        print(f"검색 결과 수: {data.get('count', 0)}개 / 전체: {data.get('total', 0)}개")
 
         if data.get('count', 0) > 0:
-            print("[OK] Auction search successful!")
-            print(f"First auction: {data['items'][0].get('물건종류', 'N/A')}")
+            print("[OK] Local DB search successful!")
+            if data.get('items'):
+                first = data['items'][0]
+                print(f"첫 번째 결과:")
+                print(f"  - 사건번호: {first.get('사건번호')}")
+                print(f"  - 물건종류: {first.get('물건종류')}")
+                print(f"  - 지역: {first.get('지역')}")
+                print(f"  - 감정가: {first.get('감정가_formatted')}")
         else:
-            print("[WARN] No search results")
+            print("[WARN] No search results in local DB")
 
     except Exception as e:
         print(f"오류: {e}")
@@ -181,8 +222,11 @@ if __name__ == "__main__":
     if token:
         test_my_info(token)
 
-    # 5. Auction search
+    # 5. Auction search (ValueAuction API)
     test_search()
+
+    # 6. Local DB search
+    test_search_local()
 
     print("\n" + "=" * 60)
     print("API Test Completed")

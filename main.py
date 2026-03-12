@@ -3346,6 +3346,124 @@ async def search_case(
         }
 
 
+@app.get("/auctions/search")
+@limiter.limit("30/minute")
+async def search_local_auctions(
+    request: Request,
+    query: str = Query(None, description="검색 키워드 (사건번호 또는 주소)", min_length=1),
+    region: str = Query(None, description="지역 필터"),
+    property_type: str = Query(None, description="물건종류 필터"),
+    min_price: int = Query(None, description="최소 감정가"),
+    max_price: int = Query(None, description="최대 감정가"),
+    limit: int = Query(10, description="반환할 최대 결과 수", ge=1, le=100),
+    offset: int = Query(0, description="건너뛸 결과 수 (페이지네이션)", ge=0)
+):
+    """
+    로컬 데이터베이스에서 경매 물건 검색
+
+    - query: 사건번호 또는 주소 키워드
+    - region: 지역 필터 (서울, 경기, 인천 등)
+    - property_type: 물건종류 (아파트, 오피스텔 등)
+    - min_price, max_price: 감정가 범위
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # SQL 쿼리 구성
+        sql = """
+            SELECT
+                case_no,
+                사건번호,
+                물건번호,
+                물건종류,
+                지역,
+                감정가,
+                면적,
+                경매회차,
+                predicted_price,
+                created_at
+            FROM predictions
+            WHERE 1=1
+        """
+        params = []
+
+        # 검색 키워드 (사건번호 또는 주소)
+        if query:
+            sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
+            params.extend([f"%{query}%", f"%{query}%"])
+
+        # 지역 필터
+        if region:
+            sql += " AND 지역 = ?"
+            params.append(region)
+
+        # 물건종류 필터
+        if property_type:
+            sql += " AND 물건종류 = ?"
+            params.append(property_type)
+
+        # 가격 범위 필터
+        if min_price:
+            sql += " AND 감정가 >= ?"
+            params.append(min_price)
+
+        if max_price:
+            sql += " AND 감정가 <= ?"
+            params.append(max_price)
+
+        # 정렬 및 페이지네이션
+        sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        # 전체 개수 조회 (페이지네이션용)
+        count_sql = sql.split("LIMIT")[0].replace("SELECT case_no, 사건번호, 물건번호, 물건종류, 지역, 감정가, 면적, 경매회차, predicted_price, created_at", "SELECT COUNT(*)")
+        cursor.execute(count_sql, params[:-2])  # LIMIT, OFFSET 제외
+        total_count = cursor.fetchone()[0]
+
+        # 결과 포맷팅
+        results = []
+        for row in rows:
+            results.append({
+                "case_no": row[0],
+                "사건번호": row[1],
+                "물건번호": row[2],
+                "물건종류": row[3],
+                "지역": row[4],
+                "감정가": row[5],
+                "감정가_formatted": f"{row[5]:,}원" if row[5] else "정보 없음",
+                "면적": row[6],
+                "경매회차": row[7],
+                "predicted_price": row[8],
+                "predicted_price_formatted": f"{row[8]:,}원" if row[8] else "정보 없음",
+                "created_at": row[9]
+            })
+
+        conn.close()
+
+        return {
+            "success": True,
+            "items": results,
+            "count": len(results),
+            "total": total_count,
+            "offset": offset,
+            "limit": limit,
+            "has_more": (offset + limit) < total_count
+        }
+
+    except Exception as e:
+        logger.error(f"로컬 경매 검색 오류: {e}", exc_info=True)
+        return {
+            "success": False,
+            "items": [],
+            "message": "검색 중 오류가 발생했습니다",
+            "error": str(e)
+        }
+
+
 # ============================================================================
 # JWT 인증 API
 # ============================================================================
