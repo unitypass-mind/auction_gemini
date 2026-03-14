@@ -3635,7 +3635,7 @@ async def register_user(user_data: UserRegister):
         raise HTTPException(status_code=500, detail="회원가입 중 오류가 발생했습니다")
 
 
-@app.post("/auth/login", response_model=TokenResponse, tags=["인증"])
+@app.post("/auth/login", tags=["인증"])
 async def login_user(login_data: UserLogin):
     """
     사용자 로그인
