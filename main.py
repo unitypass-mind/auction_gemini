@@ -3420,8 +3420,26 @@ async def search_local_auctions(
         rows = cursor.fetchall()
 
         # 전체 개수 조회 (페이지네이션용)
-        count_sql = sql.split("LIMIT")[0].replace("SELECT case_no, 사건번호, 물건번호, 물건종류, 지역, 감정가, 면적, 경매회차, predicted_price, created_at", "SELECT COUNT(*)")
-        cursor.execute(count_sql, params[:-2])  # LIMIT, OFFSET 제외
+        count_sql = "SELECT COUNT(*) FROM predictions WHERE 1=1"
+        count_params = []
+
+        if query:
+            count_sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
+            count_params.extend([f"%{query}%", f"%{query}%"])
+        if region:
+            count_sql += " AND 지역 = ?"
+            count_params.append(region)
+        if property_type:
+            count_sql += " AND 물건종류 = ?"
+            count_params.append(property_type)
+        if min_price:
+            count_sql += " AND 감정가 >= ?"
+            count_params.append(min_price)
+        if max_price:
+            count_sql += " AND 감정가 <= ?"
+            count_params.append(max_price)
+
+        cursor.execute(count_sql, count_params)
         total_count = int(cursor.fetchone()[0])
 
         # 결과 포맷팅
