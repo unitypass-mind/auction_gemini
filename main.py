@@ -24,7 +24,7 @@ import asyncio
 import threading
 
 from config import settings
-from database import db
+from database import db, DB_PATH
 from rate_limit import setup_rate_limiting, limiter
 from error_handlers import (
     APIError, create_error_response, handle_validation_error,
