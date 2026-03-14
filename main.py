@@ -3422,7 +3422,7 @@ async def search_local_auctions(
         # 전체 개수 조회 (페이지네이션용)
         count_sql = sql.split("LIMIT")[0].replace("SELECT case_no, 사건번호, 물건번호, 물건종류, 지역, 감정가, 면적, 경매회차, predicted_price, created_at", "SELECT COUNT(*)")
         cursor.execute(count_sql, params[:-2])  # LIMIT, OFFSET 제외
-        total_count = cursor.fetchone()[0]
+        total_count = int(cursor.fetchone()[0])
 
         # 결과 포맷팅
         results = []
