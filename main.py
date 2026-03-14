@@ -3381,6 +3381,94 @@ async def search_case(
         }
 
 
+@app.get("/auctions/list-by-case")
+@limiter.limit("30/minute")
+async def list_auctions_by_case_number(
+    request: Request,
+    case_no: str = Query(..., description="사건번호")
+):
+    """
+    사건번호로 ValueAuction에서 모든 매칭 물건 조회
+    같은 사건번호에 여러 물건이 있을 경우 모두 반환
+
+    Returns:
+        - items: 물건 목록 (간략 정보)
+        - count: 물건 개수
+    """
+    try:
+        logger.info(f"사건번호로 물건 목록 조회: {case_no}")
+
+        # 사건번호 정규화
+        case_no = normalize_case_number(case_no)
+
+        # ValueAuction API 호출
+        api_url = "https://valueauction.co.kr/api/search"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+            "Content-Type": "application/json",
+            "Referer": "https://valueauction.co.kr/",
+            "Origin": "https://valueauction.co.kr"
+        }
+
+        payload = {
+            "auctionType": "auction",
+            "case": case_no
+        }
+
+        response = requests.post(api_url, json=payload, headers=headers, timeout=30)
+
+        if response.status_code != 200:
+            return {
+                "success": False,
+                "message": f"ValueAuction API 오류: {response.status_code}",
+                "items": [],
+                "count": 0
+            }
+
+        data = response.json()
+        results = data.get('results', [])
+
+        # 사건번호가 정확히 일치하는 물건들만 필터링
+        matched_items = []
+        for item in results:
+            item_case_no = item.get('case', {}).get('name', '')
+            if item_case_no == case_no or re.sub(r'[^\d타경가단]', '', item_case_no) == re.sub(r'[^\d타경가단]', '', case_no):
+                # 간략한 정보만 추출
+                price_data = item.get('price', {})
+                badge_data = item.get('badge', {})
+                case_data = item.get('case', {})
+
+                matched_items.append({
+                    "case_no": item_case_no,
+                    "court": case_data.get('site', '정보 없음'),
+                    "address": item.get('address', '정보 없음'),
+                    "property_type": badge_data.get('category', '기타'),
+                    "appraisal_price": int(price_data.get('appraised_price', 0) or 0),
+                    "area": float(badge_data.get('area_buildings', 0) or badge_data.get('area', 0) or 0.0),
+                    "auction_round": int(badge_data.get('failure_count', 0)) + 1,
+                    "bidding_date": item.get('bidding_date', 0)
+                })
+
+        logger.info(f"사건번호 {case_no}로 {len(matched_items)}개 물건 발견")
+
+        return {
+            "success": True,
+            "items": matched_items,
+            "count": len(matched_items)
+        }
+
+    except Exception as e:
+        logger.error(f"사건번호 물건 목록 조회 실패: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "message": "물건 목록 조회 중 오류가 발생했습니다.",
+            "items": [],
+            "count": 0
+        }
+
+
 @app.get("/auctions/search")
 @limiter.limit("30/minute")
 async def search_local_auctions(
