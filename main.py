@@ -3399,7 +3399,7 @@ async def list_auctions_by_case_number(
         logger.info(f"사건번호로 물건 목록 조회: {case_no}")
 
         # 사건번호 정규화
-        case_no = normalize_case_number(case_no)
+        case_no = format_case_number(case_no)
 
         # ValueAuction API 호출
         api_url = "https://valueauction.co.kr/api/search"
