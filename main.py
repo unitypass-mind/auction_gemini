@@ -392,8 +392,9 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         else:
             auction_date_fmt = ''
 
-        # 법원명
+        # 법원명 및 경매 계 정보
         court_name = case_data.get('site', 'ValueAuction')
+        court_department = case_data.get('department', '')  # 경매 계 번호 (예: 경매6계)
 
         # 지역 추출
         region_map = {
@@ -507,6 +508,8 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
             "지역": region,
             "낙찰률": (selling_price / appraisal_price) if selling_price and appraisal_price > 0 else 0,
             "데이터소스": f"법원경매정보 ({court_name}) - 실시간",
+            "법원": court_name,  # ✅ 법원명 추가
+            "경매계": court_department,  # ✅ 경매 계 정보 추가
             "note": note,
             "매각예정일": auction_date_fmt,
             "권리분석": rights_info,  # ✅ 권리분석 정보 추가
