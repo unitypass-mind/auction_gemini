@@ -3691,10 +3691,18 @@ async def login_user(login_data: UserLogin):
 
         logger.info(f"로그인 성공: {login_data.email} (ID={user['id']})")
 
-        return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token
-        )
+        return {
+            "success": True,
+            "message": "로그인에 성공했습니다",
+            "user": {
+                "id": user['id'],
+                "email": user['email'],
+                "name": user['name'],
+                "created_at": user['created_at']
+            },
+            "access_token": access_token,
+            "refresh_token": refresh_token
+        }
 
     except HTTPException:
         raise
