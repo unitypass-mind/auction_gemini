@@ -3350,7 +3350,7 @@ async def search_case(
 @limiter.limit("30/minute")
 async def search_local_auctions(
     request: Request,
-    query: str = Query(None, description="검색 키워드 (사건번호 또는 주소)", min_length=1),
+    query: str = Query(None, description="검색 키워드 (사건번호 또는 주소)"),
     region: str = Query(None, description="지역 필터"),
     property_type: str = Query(None, description="물건종류 필터"),
     min_price: int = Query(None, description="최소 감정가"),
