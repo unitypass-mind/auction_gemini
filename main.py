@@ -434,6 +434,39 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         has_share_land = matched_item.get('has_share_land', False)
         notes = matched_item.get('notes', '')
 
+        # 추가 권리분석 정보 추출
+        tags = matched_item.get('tags', [])  # 권리분석 태그들
+        is_hug = matched_item.get('is_hug', False)  # HUG 물건 여부
+        hug_status = matched_item.get('hug_status', '')  # HUG 상태
+        tenant_status = matched_item.get('tenant_status', '')  # 임차인 상태
+
+        # 권리분석 텍스트 조합
+        rights_text_parts = []
+
+        # HUG 물건 정보
+        if is_hug:
+            rights_text_parts.append("HUG물건")
+        if hug_status:
+            rights_text_parts.append(hug_status)
+
+        # 임차인 정보
+        if tenant_status:
+            rights_text_parts.append(tenant_status)
+
+        # 태그 정보
+        if tags:
+            if isinstance(tags, list):
+                rights_text_parts.extend([str(tag) for tag in tags if tag])
+            else:
+                rights_text_parts.append(str(tags))
+
+        # notes 추가
+        if notes:
+            rights_text_parts.append(notes[:500])
+
+        # 최종 권리분석 텍스트
+        rights_analysis_text = " / ".join(rights_text_parts) if rights_text_parts else ""
+
         # 청구금액 비율 계산
         claim_ratio = (claim_amount / appraisal_price) if appraisal_price > 0 else 0
 
@@ -443,7 +476,9 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
             "청구금액비율": round(claim_ratio, 4),
             "공유지분_건물": has_share_floor,
             "공유지분_토지": has_share_land,
-            "권리분석_원문": notes[:500] if notes else ""  # 최대 500자
+            "권리분석_원문": rights_analysis_text,
+            "is_hug": is_hug,
+            "태그수": len(tags) if isinstance(tags, list) else 0
         }
 
         # 감정가 0이면 유효하지 않은 데이터
