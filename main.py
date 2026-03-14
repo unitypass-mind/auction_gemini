@@ -3367,7 +3367,7 @@ async def search_local_auctions(
     - min_price, max_price: 감정가 범위
     """
     try:
-        conn = get_db_connection()
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
         # SQL 쿼리 구성
