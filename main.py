@@ -381,16 +381,19 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
 
         address = matched_item.get('address', '정보 없음')
 
-        # 매각예정일 (Unix timestamp → YYYY-MM-DD)
+        # 매각예정일 (Unix timestamp → YYYY-MM-DD and YYYYMMDD)
         bidding_ts = matched_item.get('bidding_date', 0)
+        auction_date_fmt = ''
+        bidding_date_yyyymmdd = ''
         if bidding_ts and bidding_ts > 0:
             from datetime import datetime as _dt
             try:
-                auction_date_fmt = _dt.fromtimestamp(bidding_ts).strftime('%Y-%m-%d')
+                dt_obj = _dt.fromtimestamp(bidding_ts)
+                auction_date_fmt = dt_obj.strftime('%Y-%m-%d')
+                bidding_date_yyyymmdd = dt_obj.strftime('%Y%m%d')
             except Exception:
                 auction_date_fmt = ''
-        else:
-            auction_date_fmt = ''
+                bidding_date_yyyymmdd = ''
 
         # ✅ 권리분석 정보 추출 (ValueAuction API)
         auction_data = matched_item.get('auction', {})
@@ -514,6 +517,7 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
             "경매계": court_department,  # ✅ 경매 계 정보 추가
             "note": note,
             "매각예정일": auction_date_fmt,
+            "bidding_date": bidding_date_yyyymmdd,  # ✅ Flutter 앱용 YYYYMMDD 형식
             "권리분석": rights_info,  # ✅ 권리분석 정보 추가
             "원본데이터": matched_item
         }
@@ -626,6 +630,7 @@ def _parse_court_data(data: dict, case_no: str) -> Optional[Dict[str, Any]]:
     court_name = cs_bas_inf.get('cortOfcNm', '법원경매')
 
     # 매각예정일 형식 변환 (20260309 → 2026-03-09)
+    bidding_date_yyyymmdd = auction_date if auction_date and len(auction_date) == 8 else ''
     if auction_date and len(auction_date) == 8:
         auction_date_fmt = f"{auction_date[:4]}-{auction_date[4:6]}-{auction_date[6:]}"
     else:
@@ -654,6 +659,7 @@ def _parse_court_data(data: dict, case_no: str) -> Optional[Dict[str, Any]]:
         "데이터소스": f"법원경매정보 ({court_name}) - 실시간",
         "note": note,
         "매각예정일": auction_date_fmt,
+        "bidding_date": bidding_date_yyyymmdd,  # ✅ Flutter 앱용 YYYYMMDD 형식
         "청구금액": clm_amt,
         "원본데이터": data
     }
