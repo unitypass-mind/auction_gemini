@@ -396,6 +396,15 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         court_name = case_data.get('site', 'ValueAuction')
         court_department = case_data.get('department', '')  # 경매 계 번호 (예: 경매6계)
 
+        # 🔍 디버깅: ValueAuction API 응답 필드 확인
+        logger.info(f"ValueAuction API 응답 필드 확인 (사건번호: {case_no}):")
+        for key in sorted(case_data.keys()):
+            value = case_data[key]
+            if isinstance(value, str) and len(value) > 50:
+                logger.info(f"  {key}: {value[:50]}...")
+            else:
+                logger.info(f"  {key}: {value}")
+
         # 지역 추출
         region_map = {
             "서울": "서울", "경기": "경기", "인천": "인천", "부산": "부산",
