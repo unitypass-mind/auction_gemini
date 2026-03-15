@@ -119,7 +119,7 @@ def main(collect_data=True, collect_count=100):
     if collect_data:
         logger.info(f"\n📥 Step 1/6: 데이터 수집 ({collect_count}건)")
         success, elapsed = run_command(
-            "python auto_weekly_collect.py",
+            "python3 auto_weekly_collect.py",
             "데이터 수집"
         )
         pipeline_steps.append({
@@ -142,7 +142,7 @@ def main(collect_data=True, collect_count=100):
     # Step 2: 이상치 제거
     logger.info("\n🧹 Step 2/6: 이상치 데이터 제거")
     success, elapsed = run_command(
-        "python fix_outliers_safe.py",
+        "python3 fix_outliers_safe.py",
         "이상치 제거"
     )
     pipeline_steps.append({
@@ -157,7 +157,7 @@ def main(collect_data=True, collect_count=100):
     # Step 3: 모델 재학습
     logger.info("\n🧠 Step 3/6: 모델 재학습 (고도화 모델)")
     success, elapsed = run_command(
-        "python train_model_enhanced.py",
+        "python3 train_model_enhanced.py",
         "모델 재학습 (특성 엔지니어링 + 하이퍼파라미터 튜닝 + 앙상블)"
     )
     pipeline_steps.append({
@@ -178,7 +178,7 @@ def main(collect_data=True, collect_count=100):
     # Step 4: 전체 재예측
     logger.info("\n🔮 Step 4/6: 전체 재예측")
     success, elapsed = run_command(
-        "python update_predictions_v2.py",
+        "python3 update_predictions_v2.py",
         "전체 재예측"
     )
     pipeline_steps.append({
@@ -199,7 +199,7 @@ def main(collect_data=True, collect_count=100):
     # Step 5: 구간별 분석
     logger.info("\n📊 Step 5/6: 구간별 분석")
     success, elapsed = run_command(
-        "python analyze_by_price_range.py",
+        "python3 analyze_by_price_range.py",
         "구간별 분석"
     )
     pipeline_steps.append({
@@ -238,7 +238,7 @@ def main(collect_data=True, collect_count=100):
 
     except requests.exceptions.ConnectionError:
         logger.warning("⚠️ 서버에 연결할 수 없습니다 (서버가 실행 중이 아님)")
-        logger.info("💡 서버를 시작하려면: python main.py")
+        logger.info("💡 서버를 시작하려면: python3 main.py")
 
     except Exception as e:
         logger.error(f"❌ 서버 모델 리로드 중 오류: {e}")
