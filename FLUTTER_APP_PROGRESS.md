@@ -228,13 +228,18 @@ auction_ai_app/
 6. Google-services.json 패키지명 수정
 7. AuthProvider async 초기화 패턴 수정
 8. **회원가입 API JWT 토큰 반환 문제 수정** (main.py:3452-3477)
+9. **User 모델 null 안전성 문제 수정** (models.dart:169) - 2026-03-14
+   - 문제: 회원가입 시 `type 'Null' is not a subtype of type 'String'` 오류
+   - 원인: 백엔드 API의 name 필드가 Optional이지만 Flutter User 모델은 null 처리 안 됨
+   - 해결: `name: json['name'] ?? ''` 로 수정하여 null일 경우 빈 문자열 사용
 
-**✅ 현재 상태** (2026-03-11 업데이트):
+**✅ 현재 상태** (2026-03-14 업데이트):
 - ✅ Flutter 앱 빌드 및 실행 완벽
 - ✅ 로그인 화면 정상 렌더링
 - ✅ 백엔드 서버 정상 작동 (http://49.50.131.190)
 - ✅ API 연동 테스트 완료 (테스트 리포트 작성)
-- ⚠️ NCP 서버 재시작 필요 (코드 변경사항 적용)
+- ✅ User 모델 null 안전성 문제 수정 완료
+- ✅ 에뮬레이터에서 앱 실행 중 (테스트 준비 완료)
 
 **📋 작성된 문서**:
 1. **API_TEST_REPORT.md** - API 연동 테스트 상세 리포트

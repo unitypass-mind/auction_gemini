@@ -396,11 +396,21 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         court_name = case_data.get('site', 'ValueAuction')
         court_department = case_data.get('department', '')  # 경매 계 번호 (예: 경매6계)
 
-        # 🔍 디버깅: ValueAuction API 응답 필드 확인
-        logger.info(f"ValueAuction API 응답 필드 확인 (사건번호: {case_no}):")
-        for key in sorted(case_data.keys()):
-            value = case_data[key]
-            if isinstance(value, str) and len(value) > 50:
+        # 🔍 디버깅: ValueAuction API 응답 필드 확인 (전체 matched_item)
+        logger.info(f"ValueAuction API 전체 응답 구조 확인 (사건번호: {case_no}):")
+        for key in sorted(matched_item.keys()):
+            value = matched_item[key]
+            if isinstance(value, dict):
+                logger.info(f"  {key}: (딕셔너리, {len(value)} 필드)")
+                for subkey in sorted(value.keys()):
+                    subvalue = value[subkey]
+                    if isinstance(subvalue, str) and len(subvalue) > 50:
+                        logger.info(f"    {key}.{subkey}: {subvalue[:50]}...")
+                    elif not isinstance(subvalue, (list, dict)):
+                        logger.info(f"    {key}.{subkey}: {subvalue}")
+            elif isinstance(value, list):
+                logger.info(f"  {key}: (리스트, {len(value)} 항목)")
+            elif isinstance(value, str) and len(value) > 50:
                 logger.info(f"  {key}: {value[:50]}...")
             else:
                 logger.info(f"  {key}: {value}")
