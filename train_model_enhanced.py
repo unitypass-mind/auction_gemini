@@ -14,7 +14,7 @@ import sqlite3
 import numpy as np
 import warnings
 from pathlib import Path
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, VotingRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
@@ -430,23 +430,39 @@ def train_ensemble_models(X_train, y_train, X_test, y_test, tuned_rf):
         estimators.append(('xgb', xgb_model))
         model_results['XGBoost'] = xgb_model
 
-    # Voting Ensemble
-    logger.info(f"\nVoting Ensemble 생성 ({len(estimators)}개 모델)...")
-    voting_model = VotingRegressor(estimators=estimators)
-    voting_model.fit(X_train, y_train)
+    # Manual Ensemble (simple average)
+    logger.info(f"\n수동 앙상블 생성 ({len(estimators)}개 모델의 평균 예측)...")
 
-    voting_pred = voting_model.predict(X_test)
-    voting_mae = mean_absolute_error(y_test, voting_pred)
-    voting_r2 = r2_score(y_test, voting_pred)
-    voting_errors = np.abs(voting_pred - y_test) / y_test * 100
+    # Collect predictions from all models
+    all_predictions = []
+    for name, model in estimators:
+        pred = model.predict(X_test)
+        all_predictions.append(pred)
+
+    # Average predictions
+    ensemble_pred = np.mean(all_predictions, axis=0)
+    ensemble_mae = mean_absolute_error(y_test, ensemble_pred)
+    ensemble_r2 = r2_score(y_test, ensemble_pred)
+    ensemble_errors = np.abs(ensemble_pred - y_test) / y_test * 100
 
     logger.info("\n" + "=" * 80)
     logger.info("앙상블 최종 성능")
     logger.info("=" * 80)
-    logger.info(f"Voting Ensemble - MAE: {voting_mae:,.0f}원, R²: {voting_r2:.4f}, 오차율: {voting_errors.mean():.2f}%")
+    logger.info(f"Manual Ensemble (평균) - MAE: {ensemble_mae:,.0f}원, R²: {ensemble_r2:.4f}, 오차율: {ensemble_errors.mean():.2f}%")
     logger.info("=" * 80)
 
-    return voting_model, voting_errors.mean(), model_results
+    # Create a simple ensemble wrapper class
+    class SimpleEnsemble:
+        def __init__(self, models):
+            self.models = models
+
+        def predict(self, X):
+            predictions = [model.predict(X) for _, model in self.models]
+            return np.mean(predictions, axis=0)
+
+    ensemble_model = SimpleEnsemble(estimators)
+
+    return ensemble_model, ensemble_errors.mean(), model_results
 
 
 def train_model_enhanced():
