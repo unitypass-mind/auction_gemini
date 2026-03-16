@@ -155,10 +155,10 @@ def main(collect_data=True, collect_count=100):
         logger.warning("⚠️ 이상치 제거 실패 (치명적이지 않음, 계속 진행)")
 
     # Step 3: 모델 재학습
-    logger.info("\n🧠 Step 3/6: 모델 재학습 (고도화 모델)")
+    logger.info("\n🧠 Step 3/6: 모델 재학습")
     success, elapsed = run_command(
-        "/root/auction_gemini/venv/bin/python3 train_model_enhanced.py",
-        "모델 재학습 (특성 엔지니어링 + 하이퍼파라미터 튜닝 + 앙상블)"
+        "/root/auction_gemini/venv/bin/python3 train_model_v4.py",
+        "모델 재학습 (하이퍼파라미터 튜닝 + 패턴 기반)"
     )
     pipeline_steps.append({
         "step": "3. 모델 재학습",
