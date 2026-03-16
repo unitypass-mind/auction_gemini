@@ -31,9 +31,6 @@ except ImportError:
     XGBOOST_AVAILABLE = False
     logging.warning("XGBoost 없음. 설치 권장: pip install xgboost")
 
-# UTF-8 인코딩 설정
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -361,7 +358,7 @@ def train_with_hyperparameter_tuning(X_train, y_train, X_test, y_test):
         cv=5,
         scoring='neg_mean_absolute_error',
         n_jobs=-1,
-        verbose=1
+        verbose=0
     )
 
     grid_search_rf.fit(X_train, y_train)
