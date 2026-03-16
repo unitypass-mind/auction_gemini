@@ -22,6 +22,16 @@ DB_PATH = Path("data/predictions.db")
 MODEL_PATH = Path("models/auction_model_v2.pkl")
 
 
+class SimpleEnsemble:
+    """간단한 앙상블 모델 (여러 모델의 평균 예측)"""
+    def __init__(self, models):
+        self.models = models
+
+    def predict(self, X):
+        predictions = [model.predict(X) for _, model in self.models]
+        return np.mean(predictions, axis=0)
+
+
 def create_features_v2(
     start_price: int,
     property_type: str,
