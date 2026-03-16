@@ -3181,8 +3181,10 @@ async def get_model_status():
     """
     return {
         "model_loaded": model is not None,
-        "model_version": "v2" if model_v2_path.exists() and model is not None else "v1" if model is not None else None,
+        "model_version": "v4" if model_v4_path.exists() and model is not None else "v3" if model_v3_path.exists() and model is not None else "v2" if model_v2_path.exists() and model is not None else "v1" if model is not None else None,
         "load_time": model_load_time.strftime('%Y-%m-%d %H:%M:%S') if model_load_time else None,
+        "v4_path_exists": model_v4_path.exists(),
+        "v3_path_exists": model_v3_path.exists(),
         "v2_path_exists": model_v2_path.exists(),
         "v1_path_exists": model_v1_path.exists()
     }
