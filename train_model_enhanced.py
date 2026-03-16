@@ -23,20 +23,13 @@ import logging
 
 warnings.filterwarnings('ignore')
 
-# XGBoost & LightGBM
+# XGBoost
 try:
     import xgboost as xgb
     XGBOOST_AVAILABLE = True
 except ImportError:
     XGBOOST_AVAILABLE = False
     logging.warning("XGBoost 없음. 설치 권장: pip install xgboost")
-
-try:
-    import lightgbm as lgb
-    LIGHTGBM_AVAILABLE = True
-except ImportError:
-    LIGHTGBM_AVAILABLE = False
-    logging.warning("LightGBM 없음. 설치 권장: pip install lightgbm")
 
 # UTF-8 인코딩 설정
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -439,30 +432,6 @@ def train_ensemble_models(X_train, y_train, X_test, y_test, tuned_rf):
 
         estimators.append(('xgb', xgb_model))
         model_results['XGBoost'] = xgb_model
-
-    # LightGBM
-    if LIGHTGBM_AVAILABLE:
-        logger.info("\nLightGBM 학습 중...")
-        lgb_model = lgb.LGBMRegressor(
-            n_estimators=300,
-            max_depth=7,
-            learning_rate=0.05,
-            num_leaves=31,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=42,
-            n_jobs=-1,
-            verbose=-1
-        )
-        lgb_model.fit(X_train, y_train)
-        lgb_pred = lgb_model.predict(X_test)
-        lgb_mae = mean_absolute_error(y_test, lgb_pred)
-        lgb_r2 = r2_score(y_test, lgb_pred)
-        lgb_errors = np.abs(lgb_pred - y_test) / y_test * 100
-        logger.info(f"LightGBM - MAE: {lgb_mae:,.0f}원, R²: {lgb_r2:.4f}, 오차율: {lgb_errors.mean():.2f}%")
-
-        estimators.append(('lgb', lgb_model))
-        model_results['LightGBM'] = lgb_model
 
     # Voting Ensemble
     logger.info(f"\nVoting Ensemble 생성 ({len(estimators)}개 모델)...")
