@@ -41,6 +41,16 @@ DB_PATH = Path("data/predictions.db")
 MODEL_PATH = Path("models/auction_model_v2.pkl")
 
 
+class SimpleEnsemble:
+    """간단한 앙상블 모델 (여러 모델의 평균 예측)"""
+    def __init__(self, models):
+        self.models = models
+
+    def predict(self, X):
+        predictions = [model.predict(X) for _, model in self.models]
+        return np.mean(predictions, axis=0)
+
+
 def create_features_enhanced(
     start_price: int,
     property_type: str,
@@ -451,15 +461,7 @@ def train_ensemble_models(X_train, y_train, X_test, y_test, tuned_rf):
     logger.info(f"Manual Ensemble (평균) - MAE: {ensemble_mae:,.0f}원, R²: {ensemble_r2:.4f}, 오차율: {ensemble_errors.mean():.2f}%")
     logger.info("=" * 80)
 
-    # Create a simple ensemble wrapper class
-    class SimpleEnsemble:
-        def __init__(self, models):
-            self.models = models
-
-        def predict(self, X):
-            predictions = [model.predict(X) for _, model in self.models]
-            return np.mean(predictions, axis=0)
-
+    # Create ensemble model
     ensemble_model = SimpleEnsemble(estimators)
 
     return ensemble_model, ensemble_errors.mean(), model_results
