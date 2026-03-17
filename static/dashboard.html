@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경매 AI 모니터링 대시보드</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #34495e;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .stat:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .stat-value {
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .timestamp {
+            text-align: right;
+            color: #95a5a6;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 경매 AI 모니터링 대시보드</h1>
+
+        <button class="refresh-btn" onclick="loadData()">🔄 새로고침</button>
+
+        <div id="content">
+            <div class="loading">데이터 로딩 중...</div>
+        </div>
+
+        <div class="timestamp" id="timestamp"></div>
+    </div>
+
+    <script>
+        async function loadData() {
+            const content = document.getElementById("content");
+            const timestamp = document.getElementById("timestamp");
+
+            try {
+                const modelStatus = await fetch("/model-status").then(r => r.json());
+                const startTime = Date.now();
+                await fetch("/model-status");
+                const responseTime = Date.now() - startTime;
+
+                content.innerHTML = `
+                    <div class="grid">
+                        <div class="card">
+                            <h2>📊 AI 모델 상태</h2>
+                            <div class="stat">
+                                <span class="stat-label">모델 버전</span>
+                                <span class="stat-value">${modelStatus.model_version || "N/A"}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">상태</span>
+                                <span class="stat-value">
+                                    <span class="status-badge ${modelStatus.model_loaded ? "status-success" : "status-error"}">
+                                        ${modelStatus.model_loaded ? "정상 작동" : "오류"}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">로드 시간</span>
+                                <span class="stat-value">${modelStatus.load_time || "N/A"}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">특성 개수</span>
+                                <span class="stat-value">58개</span>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>⚡ 서버 성능</h2>
+                            <div class="stat">
+                                <span class="stat-label">API 응답 시간</span>
+                                <span class="stat-value">${responseTime}ms</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">서버 URL</span>
+                                <span class="stat-value">auction-ai.kr</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">HTTPS</span>
+                                <span class="stat-value">
+                                    <span class="status-badge status-success">활성화</span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Rate Limit</span>
+                                <span class="stat-value">60요청/분</span>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>🔒 보안 상태</h2>
+                            <div class="stat">
+                                <span class="stat-label">SSL 인증서</span>
+                                <span class="stat-value">
+                                    <span class="status-badge status-success">Let's Encrypt</span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">fail2ban</span>
+                                <span class="stat-value">
+                                    <span class="status-badge status-success">활성화</span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">UFW 방화벽</span>
+                                <span class="stat-value">
+                                    <span class="status-badge status-success">활성화</span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">SSH 포트</span>
+                                <span class="stat-value">2222</span>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>💾 백업 & 로그</h2>
+                            <div class="stat">
+                                <span class="stat-label">데이터베이스 백업</span>
+                                <span class="stat-value">매일 02:00</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">보관 기간</span>
+                                <span class="stat-value">7일</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">로그 로테이션</span>
+                                <span class="stat-value">매일 00:00</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">모니터링</span>
+                                <span class="stat-value">10분마다</span>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>📁 모델 파일</h2>
+                            <div class="stat">
+                                <span class="stat-label">v4 모델</span>
+                                <span class="stat-value">
+                                    <span class="status-badge ${modelStatus.v4_path_exists ? "status-success" : "status-error"}">
+                                        ${modelStatus.v4_path_exists ? "존재" : "없음"}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">v3 모델</span>
+                                <span class="stat-value">
+                                    <span class="status-badge ${modelStatus.v3_path_exists ? "status-success" : "status-warning"}">
+                                        ${modelStatus.v3_path_exists ? "존재" : "없음"}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">v2 모델</span>
+                                <span class="stat-value">
+                                    <span class="status-badge ${modelStatus.v2_path_exists ? "status-success" : "status-warning"}">
+                                        ${modelStatus.v2_path_exists ? "존재" : "없음"}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">v1 모델</span>
+                                <span class="stat-value">
+                                    <span class="status-badge ${modelStatus.v1_path_exists ? "status-success" : "status-warning"}">
+                                        ${modelStatus.v1_path_exists ? "존재" : "없음"}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>🔗 빠른 링크</h2>
+                            <div class="stat">
+                                <span class="stat-label">API 문서</span>
+                                <span class="stat-value">
+                                    <a href="/docs" target="_blank" style="color: #3498db; text-decoration: none;">열기 →</a>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">모델 상태 API</span>
+                                <span class="stat-value">
+                                    <a href="/model-status" target="_blank" style="color: #3498db; text-decoration: none;">열기 →</a>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">메인 페이지</span>
+                                <span class="stat-value">
+                                    <a href="/" target="_blank" style="color: #3498db; text-decoration: none;">열기 →</a>
+                                </span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">대시보드</span>
+                                <span class="stat-value">
+                                    <a href="/dashboard.html" style="color: #3498db; text-decoration: none;">새로고침 →</a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const now = new Date();
+                timestamp.textContent = `마지막 업데이트: ${now.toLocaleString("ko-KR")}`;
+
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <strong>오류 발생:</strong> ${error.message}<br>
+                        데이터를 불러올 수 없습니다. 서버 상태를 확인해주세요.
+                    </div>
+                `;
+            }
+        }
+
+        loadData();
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
