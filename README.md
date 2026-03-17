@@ -44,21 +44,27 @@
 - API 사용법 문서
 - 데이터베이스 스키마 설명
 
-**✅ NCP 프로덕션 배포 (2026-03-08 완료)**
+**✅ NCP 프로덕션 배포 (2026-03-17 완료)**
 - Naver Cloud Platform 서버 생성 완료
 - Nginx 리버스 프록시 설정 (80 → 8000)
 - systemd 서비스 자동 시작 설정
 - Firebase 연동 완료
-- 데이터베이스 및 AI 모델 업로드 (75MB)
-- Fail2ban 보안 강화
-- 서비스 URL: http://49.50.131.190
+- 데이터베이스 및 AI 모델 v4 배포 (58개 특성)
+- Fail2ban 보안 강화 (SSH 브루트포스 방어)
+- **HTTPS 인증서 설정 완료 (Let's Encrypt)**
+- **도메인 설정 완료 (auction-ai.kr)**
+- **데이터베이스 백업 자동화 (매일 02:00)**
+- **서버 모니터링 시스템 (10분마다)**
+- **로그 로테이션 설정 (7일 보관)**
+- **API Rate Limiting (60요청/분)**
+- **서비스 URL: https://auction-ai.kr**
 
 ### 진행 중 / 예정된 작업
 
-**🔄 Week 4 마무리 (선택사항)**
-- HTTPS 인증서 설정 (Let's Encrypt) - 도메인 필요
-- 데이터베이스 백업 자동화
-- 모니터링 시스템 (Prometheus/Grafana)
+**🔄 운영 및 최적화 (선택사항)**
+- 모니터링 대시보드 (Prometheus/Grafana)
+- CI/CD 파이프라인 (GitHub Actions)
+- 모델 성능 자동 추적
 
 **📅 Week 5-8: 모바일 앱 개발**
 - Flutter 앱 개발 (4주 예정)
@@ -181,14 +187,17 @@
 
 ### 프로덕션 서비스 접속
 
-**웹 서비스**: http://49.50.131.190
-- API 문서: http://49.50.131.190/docs
-- 정확도 통계: http://49.50.131.190 → 정확도 탭
+**웹 서비스**: https://auction-ai.kr
+- API 문서: https://auction-ai.kr/docs
+- 모델 상태: https://auction-ai.kr/model-status
+- 정확도 통계: https://auction-ai.kr → 정확도 탭
 - 검색 기능: 지역, 물건 종류, 사건번호로 검색 가능
 
 **서버 관리 (SSH)**:
 ```bash
-ssh -p 2222 root@49.50.131.190
+ssh -p 2222 root@49.50.131.190  # IP 주소로 SSH 접속
+# 또는
+ssh -p 2222 root@auction-ai.kr  # 도메인으로 접속 (DNS 설정 필요)
 ```
 
 ### 사전 요구사항
@@ -400,7 +409,7 @@ logs/
 
 ---
 
-**마지막 업데이트**: 2026-03-08
-**프로젝트 진행률**: 90% (Week 4 완료)
+**마지막 업데이트**: 2026-03-17
+**프로젝트 진행률**: 95% (HTTPS 및 모니터링 완료)
 **다음 마일스톤**: 모바일 앱 개발 (Week 5-8)
-**프로덕션 서비스**: http://49.50.131.190
+**프로덕션 서비스**: https://auction-ai.kr
