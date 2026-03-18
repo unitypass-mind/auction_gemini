@@ -1,3 +1,10 @@
+// 키스토어 설정 로드
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = java.util.Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -31,11 +38,35 @@ android {
         versionName = flutter.versionName
     }
 
+    // 릴리스 서명 설정
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // 릴리스 서명 설정 사용
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                // key.properties 파일이 없으면 debug 키 사용 (개발 중)
+                signingConfigs.getByName("debug")
+            }
+
+            // 코드 난독화 및 최적화 (선택사항)
+            isMinifyEnabled = false // 첫 배포는 false, 나중에 true로 변경 가능
+            // isShrinkResources = true // minifyEnabled = true일 때만 사용
+            // proguardFiles(
+            //     getDefaultProguardFile("proguard-android-optimize.txt"),
+            //     "proguard-rules.pro"
+            // )
         }
     }
 }
