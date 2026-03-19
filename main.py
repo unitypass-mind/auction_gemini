@@ -441,7 +441,11 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         notes = matched_item.get('notes', '')
 
         # 추가 권리분석 정보 추출
-        tags = matched_item.get('tags', [])  # 권리분석 태그들
+        # ValueAuction API 응답 구조: badge.good_items, badge.tags
+        badge_info = matched_item.get('badge', {})
+        good_items = badge_info.get('good_items', [])  # 긍정적 태그들 (안전한 물건, 모든 권리 소멸 등)
+        warning_tags = badge_info.get('tags', [])  # 경고 태그들 (중복사건 등)
+
         is_hug = matched_item.get('is_hug', False)  # HUG 물건 여부
         hug_status = matched_item.get('hug_status', '')  # HUG 상태
         tenant_status = matched_item.get('tenant_status', '')  # 임차인 상태
@@ -452,18 +456,13 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         # 권리분석 텍스트 조합
         rights_text_parts = []
 
-        # 청구금액 비율에 따른 자동 태그 생성
-        if claim_amount > 0:
-            if claim_ratio >= 0.8:
-                rights_text_parts.append(f"청구금액 매우 높음 ({int(claim_ratio*100)}%)")
-            elif claim_ratio >= 0.6:
-                rights_text_parts.append(f"청구금액 높음 ({int(claim_ratio*100)}%)")
-            elif claim_ratio >= 0.4:
-                rights_text_parts.append(f"청구금액 보통 ({int(claim_ratio*100)}%)")
-            elif claim_ratio >= 0.2:
-                rights_text_parts.append(f"청구금액 낮음 ({int(claim_ratio*100)}%)")
-            else:
-                rights_text_parts.append(f"청구금액 매우 낮음 ({int(claim_ratio*100)}%)")
+        # ✅ ValueAuction 긍정적 태그 우선 표시 (안전한 물건, 모든 권리 소멸 등)
+        if good_items and isinstance(good_items, list):
+            rights_text_parts.extend([str(item) for item in good_items if item])
+
+        # ⚠️ ValueAuction 경고 태그 (중복사건 등)
+        if warning_tags and isinstance(warning_tags, list):
+            rights_text_parts.extend([str(tag) for tag in warning_tags if tag])
 
         # 공유지분 정보
         if has_share_floor:
@@ -480,13 +479,6 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         # 임차인 정보
         if tenant_status:
             rights_text_parts.append(tenant_status)
-
-        # 태그 정보
-        if tags:
-            if isinstance(tags, list):
-                rights_text_parts.extend([str(tag) for tag in tags if tag])
-            else:
-                rights_text_parts.append(str(tags))
 
         # notes 추가
         if notes:

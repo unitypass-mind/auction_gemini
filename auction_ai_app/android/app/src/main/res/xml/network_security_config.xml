@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 프로덕션 환경: auction-ai.kr 도메인 허용 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">auction-ai.kr</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- 개발/테스트 환경: IP 주소로 HTTPS 연결 허용 (자체 서명 인증서 포함) -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">49.50.131.190</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- 임시: 모든 도메인에 대해 자체 서명 인증서 허용 (테스트용) -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- 디버그 빌드에서만 모든 인증서 허용 -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

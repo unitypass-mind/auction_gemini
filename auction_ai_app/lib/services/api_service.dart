@@ -1,18 +1,21 @@
 /// API 서비스 클래스
 /// FastAPI 백엔드와 통신하는 HTTP 클라이언트
 
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   late Dio _dio;
-  static const String baseUrl = 'https://auction-ai.kr'; // NCP 프로덕션 서버 (HTTPS)
+  // 에뮬레이터 테스트용: IP 주소 직접 사용
+  static const String baseUrl = 'https://49.50.131.190'; // NCP 서버 IP
+
+  // 프로덕션 환경에서는 도메인 사용
+  // static const String baseUrl = 'https://auction-ai.kr';
 
   // 개발 환경에서는 로컬 서버 사용
   // static const String baseUrl = 'http://localhost:8000';
-
-  // 이전 IP 주소 (참고용)
-  // static const String baseUrl = 'http://49.50.131.190';
 
   ApiService() {
     _dio = Dio(BaseOptions(
@@ -25,9 +28,23 @@ class ApiService {
       },
     ));
 
+    // SSL 인증서 검증 우회 (개발/테스트 환경용)
+    (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+      final client = HttpClient();
+      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      return client;
+    };
+
     // 인터셉터 추가 (JWT 토큰 자동 추가)
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
+        // 디버그 로깅
+        print('=== API Request ===');
+        print('URL: ${options.baseUrl}${options.path}');
+        print('Method: ${options.method}');
+        print('Query Parameters: ${options.queryParameters}');
+        print('Headers: ${options.headers}');
+
         // SharedPreferences에서 JWT 토큰 가져오기
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('access_token');
@@ -38,7 +55,21 @@ class ApiService {
 
         return handler.next(options);
       },
+      onResponse: (response, handler) {
+        // 응답 로깅
+        print('=== API Response ===');
+        print('Status Code: ${response.statusCode}');
+        print('Data: ${response.data.toString().substring(0, 200)}...');
+        return handler.next(response);
+      },
       onError: (error, handler) async {
+        // 에러 로깅
+        print('=== API Error ===');
+        print('Error Type: ${error.type}');
+        print('Error Message: ${error.message}');
+        print('Status Code: ${error.response?.statusCode}');
+        print('Response Data: ${error.response?.data}');
+
         // 401 Unauthorized 에러 처리 (토큰 만료)
         if (error.response?.statusCode == 401) {
           // 토큰 갱신 로직 또는 로그아웃 처리

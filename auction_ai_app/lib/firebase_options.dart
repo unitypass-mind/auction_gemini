@@ -60,9 +60,10 @@ class DefaultFirebaseOptions {
   // iOS 설정은 Firebase Console에서 iOS 앱을 추가한 후
   // GoogleService-Info.plist를 다운로드하여 아래 정보를 입력하세요
   // 또는 Firebase CLI를 사용하여 자동 생성: flutterfire configure
+  // 현재는 Android만 지원하므로 임시로 Android 설정 재사용
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY', // GoogleService-Info.plist의 API_KEY
-    appId: 'YOUR_IOS_APP_ID', // 형식: 1:433338827717:ios:xxxxx
+    apiKey: 'AIzaSyBY5vEW6P4p8LQwWPTjPXdsTOl04NWvaAA',
+    appId: '1:433338827717:ios:0000000000000000', // 임시 iOS 앱 ID
     messagingSenderId: '433338827717',
     projectId: 'auction-ai-app',
     storageBucket: 'auction-ai-app.firebasestorage.app',

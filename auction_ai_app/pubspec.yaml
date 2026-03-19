@@ -23,9 +23,9 @@ dependencies:
   shared_preferences: ^2.2.2
 
   # Firebase
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.7.10
-  firebase_auth: ^4.16.0
+  firebase_core: ^4.5.0
+  firebase_messaging: ^16.1.2
+  firebase_auth: ^6.2.0
 
   # JWT 디코딩
   jwt_decoder: ^2.0.1

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'providers/auth_provider.dart';
@@ -10,10 +8,8 @@ import 'providers/selected_auction_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase 초기화
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Firebase는 현재 비활성화 (백엔드 API만 사용)
+  // 푸시 알림이 필요한 경우 Firebase 설정을 활성화하세요
 
   runApp(const MyApp());
 }
