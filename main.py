@@ -2089,10 +2089,10 @@ def predict_price_advanced(
             prediction = model.predict(features.reshape(1, -1))[0]
             predicted = int(prediction)
 
-            # 예측값 범위 제한 강화 (감정가의 40% ~ 105%)
-            # 학습 데이터와 동일한 범위로 제한하여 비현실적 예측 방지
-            min_price_val = int(start_price * 0.40)  # 최소 40% (극단적 저가 방지)
-            max_price_val = int(start_price * 1.05)  # 최대 105% (감정가 초과 방지)
+            # 예측값 범위 제한 완화 (감정가의 30% ~ 150%)
+            # 지역별/물건별 차이를 반영할 수 있도록 범위 확대
+            min_price_val = int(start_price * 0.30)  # 최소 30%
+            max_price_val = int(start_price * 1.50)  # 최대 150% (인기지역 프리미엄 허용)
             predicted = max(min_price_val, min(predicted, max_price_val))
 
             logger.info(f"AI 모델 예측 완료 ({expected_features}개 특성): {start_price:,}원 -> {predicted:,}원")
