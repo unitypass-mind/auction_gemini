@@ -105,19 +105,23 @@ class PredictionResult {
   });
 
   factory PredictionResult.fromJson(Map<String, dynamic> json) {
+    // API 응답이 { "success": true, "data": {...}, "input": {...} } 형식인 경우 처리
+    final data = json['data'] ?? json;
+    final input = json['input'] ?? {};
+
     return PredictionResult(
-      startPrice: json['start_price'] ?? json['감정가'] ?? 0,
-      predictedPrice: json['predicted_price'] ?? json['예측가'] ?? 0,
-      expectedProfit: json['expected_profit'] ?? json['예상수익'] ?? 0,
-      profitRate: (json['profit_rate'] ?? json['수익률'] ?? 0).toDouble(),
-      propertyType: json['property_type'] ?? json['물건종류'],
-      region: json['region'] ?? json['지역'],
-      area: (json['area'] ?? json['면적'])?.toDouble(),
-      auctionRound: json['auction_round'] ?? json['경매회차'] ?? 1,
-      modelUsed: json['model_used'] ?? false,
-      predictionMode: json['prediction_mode'],
-      featuresCount: json['features_count'],
-      warning: json['warning'],
+      startPrice: data['start_price'] ?? data['감정가'] ?? 0,
+      predictedPrice: data['predicted_price'] ?? data['예측가'] ?? 0,
+      expectedProfit: data['expected_profit'] ?? data['예상수익'] ?? 0,
+      profitRate: (data['profit_rate'] ?? data['수익률'] ?? 0).toDouble(),
+      propertyType: input['property_type'] ?? data['property_type'] ?? data['물건종류'],
+      region: input['region'] ?? data['region'] ?? data['지역'],
+      area: (input['area'] ?? data['area'] ?? data['면적'])?.toDouble(),
+      auctionRound: input['auction_round'] ?? data['auction_round'] ?? data['경매회차'] ?? 1,
+      modelUsed: data['model_used'] ?? false,
+      predictionMode: data['prediction_mode'],
+      featuresCount: data['features_count'],
+      warning: data['warning'],
     );
   }
 
