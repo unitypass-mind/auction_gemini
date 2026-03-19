@@ -1420,12 +1420,26 @@ class _SearchScreenState extends State<SearchScreen> {
     Color tagColor;
     Color bgColor;
 
-    if (tag.contains('모든 권리 소멸') ||
+    // ValueAuction 긍정적 태그 (초록색)
+    if (tag.contains('안전한 물건') ||
+        tag.contains('모든 권리 소멸') ||
         tag.contains('권리소멸') ||
+        tag.contains('임차인 없음') ||
+        tag.contains('로얄층') ||
+        tag.contains('대단지') ||
+        tag.contains('감정평가 1년 이상') ||
+        tag.contains('안전한물건') ||
         tag.contains('시세대비') && tag.contains('이하')) {
-      // 긍정적 태그 (녹색)
+      // 긍정적 태그 (초록색)
       tagColor = Colors.green[700]!;
       bgColor = Colors.green[50]!;
+    } else if (tag.contains('중복사건') ||
+        tag.contains('대항력포기') ||
+        tag.contains('경매취하') ||
+        tag.contains('유찰') && tag.contains('회')) {
+      // 부정적/위험 태그 (빨간색)
+      tagColor = Colors.red[700]!;
+      bgColor = Colors.red[50]!;
     } else if (tag.contains('대항력있는임차인') ||
         tag.contains('임차인') ||
         tag.contains('근저당') ||
@@ -1433,12 +1447,6 @@ class _SearchScreenState extends State<SearchScreen> {
       // 주의 태그 (주황색)
       tagColor = Colors.orange[700]!;
       bgColor = Colors.orange[50]!;
-    } else if (tag.contains('대항력포기') ||
-        tag.contains('경매취하') ||
-        tag.contains('유찰') && tag.contains('회')) {
-      // 위험 태그 (빨간색)
-      tagColor = Colors.red[700]!;
-      bgColor = Colors.red[50]!;
     } else if (tag.contains('HUG') ||
         tag.contains('LH') ||
         tag.contains('공공임대')) {
