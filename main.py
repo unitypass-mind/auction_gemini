@@ -2,7 +2,7 @@
 AI 기반 경매 낙찰가 예측 시스템
 FastAPI 메인 애플리케이션
 """
-from fastapi import FastAPI, HTTPException, Query, Request, Depends, Header
+from fastapi import FastAPI, HTTPException, Query, Request, Depends, Header, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -3153,6 +3153,112 @@ async def predict_only(
             handle_server_error("예측 처리", e, APIError.PREDICTION_FAILED)
     except Exception as e:
         # 기타 모든 예측 에러
+        handle_server_error("낙찰가 예측", e, APIError.PREDICTION_FAILED)
+
+
+@app.post("/predict/simple")
+@limiter.limit("30/minute")
+async def predict_simple(
+    request: Request,
+    start_price: int = Body(..., description="감정가 (원)"),
+    property_type: str = Body(None, description="물건종류 (아파트/다세대/오피스텔/단독주택/상가)"),
+    region: str = Body(None, description="지역 (서울/경기/인천/부산/대구/기타)"),
+    area: float = Body(None, description="면적 (㎡)"),
+    auction_round: int = Body(1, description="경매 회차")
+):
+    """
+    간단 낙찰가 예측 API (모바일 전용)
+
+    - POST 방식으로 JSON 데이터 전송
+    - 필수: start_price
+    - 선택: property_type, region, area, auction_round
+    - 모바일 최적화된 간소화 응답
+    """
+    try:
+        # 기본값 설정
+        bidders = 10  # 모바일에서는 고정값 사용
+
+        # 캐시 확인
+        cache_key = get_cache_key(
+            start_price, property_type, region, area, auction_round, bidders,
+            None, 0, 0, 0, 0, 0, 0.0, True
+        )
+        cached_result = get_from_cache(cache_key)
+        if cached_result:
+            cached_result["cached"] = True
+            return cached_result
+
+        # 예측 수행
+        if property_type and region and area:
+            # 맞춤 예측 (48개 특성)
+            predicted = predict_price_advanced(
+                start_price, property_type, region, area, auction_round, bidders,
+                None, 0, 0, 0, 0, 0, 0.0
+            )
+            mode = "맞춤 AI 예측 (48개 특성, v2 모델)"
+        else:
+            # 간단 예측 (36개 특성, 기본값 사용)
+            predicted = predict_price(start_price, bidders)
+            mode = "간단 AI 예측 (기본값: 아파트, 서울, 85㎡)"
+
+        # 예상 수익 계산
+        expected_profit = start_price - predicted
+        profit_rate = (expected_profit / start_price * 100) if start_price > 0 else 0
+        bid_ratio = (predicted / start_price * 100) if start_price > 0 else 0
+
+        # 데이터베이스에 예측 저장
+        try:
+            db.save_prediction({
+                'case_no': f"PREDICT-{int(datetime.now().timestamp())}",
+                '감정가': start_price,
+                '물건종류': property_type or "아파트",
+                '지역': region or "서울",
+                '면적': area or 85.0,
+                '경매회차': auction_round,
+                '입찰자수': bidders,
+                'predicted_price': predicted,
+                'expected_profit': expected_profit,
+                'profit_rate': profit_rate,
+                'prediction_mode': mode,
+                'model_used': model is not None,
+                'source': 'mobile_simple_predict'
+            })
+        except Exception as e:
+            logger.warning(f"예측 저장 실패 (계속 진행): {e}")
+
+        # 모바일 최적화 응답
+        result = {
+            "success": True,
+            "data": {
+                "start_price": start_price,
+                "predicted_price": predicted,
+                "expected_profit": expected_profit,
+                "profit_rate": round(profit_rate, 2),
+                "bid_ratio": round(bid_ratio, 2)
+            },
+            "input": {
+                "property_type": property_type or "아파트",
+                "region": region or "서울",
+                "area": area or 85.0,
+                "auction_round": auction_round,
+                "bidders": bidders
+            },
+            "cached": False
+        }
+
+        # 결과를 캐시에 저장
+        set_to_cache(cache_key, result)
+
+        return result
+
+    except ValueError as e:
+        handle_validation_error("입력 파라미터", str(e), "올바른 숫자 값을 입력해주세요")
+    except AttributeError as e:
+        if "model" in str(e).lower():
+            handle_model_error(e)
+        else:
+            handle_server_error("예측 처리", e, APIError.PREDICTION_FAILED)
+    except Exception as e:
         handle_server_error("낙찰가 예측", e, APIError.PREDICTION_FAILED)
 
 
