@@ -490,8 +490,6 @@ def get_auction_from_valueauction(case_no: str, site: str = None) -> Optional[Di
         # 권리관계 정보 정리
         total_tags = len(good_items) + len(warning_tags) if isinstance(good_items, list) and isinstance(warning_tags, list) else 0
         rights_info = {
-            "청구금액": claim_amount,
-            "청구금액비율": round(claim_ratio, 4),
             "공유지분_건물": has_share_floor,
             "공유지분_토지": has_share_land,
             "권리분석_원문": rights_analysis_text,
