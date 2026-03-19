@@ -128,8 +128,11 @@ class PredictionResult {
   String get formattedPredictedPrice =>
       '${_formatNumber(predictedPrice)}원';
 
-  String get formattedExpectedProfit =>
-      '${_formatNumber(expectedProfit)}원';
+  String get formattedExpectedProfit {
+    final absProfit = expectedProfit.abs();
+    final sign = expectedProfit < 0 ? '-' : '';
+    return '$sign${_formatNumber(absProfit)}원';
+  }
 
   String get formattedProfitRate =>
       '${profitRate.toStringAsFixed(1)}%';

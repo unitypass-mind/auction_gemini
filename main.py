@@ -3188,18 +3188,17 @@ async def predict_simple(
             cached_result["cached"] = True
             return cached_result
 
-        # 예측 수행
-        if property_type and region and area:
-            # 맞춤 예측 (48개 특성)
-            predicted = predict_price_advanced(
-                start_price, property_type, region, area, auction_round, bidders,
-                None, 0, 0, 0, 0, 0, 0.0
-            )
-            mode = "맞춤 AI 예측 (48개 특성, v2 모델)"
-        else:
-            # 간단 예측 (36개 특성, 기본값 사용)
-            predicted = predict_price(start_price, bidders)
-            mode = "간단 AI 예측 (기본값: 아파트, 서울, 85㎡)"
+        # 기본값 처리: None 값을 기본값으로 치환
+        property_type = property_type or "아파트"
+        region = region or "서울"
+        area = area or 85.0
+
+        # 항상 맞춤 예측 사용 (지역별 차이 반영)
+        predicted = predict_price_advanced(
+            start_price, property_type, region, area, auction_round, bidders,
+            None, 0, 0, 0, 0, 0, 0.0
+        )
+        mode = "맞춤 AI 예측 (58개 특성, v4 모델)"
 
         # 예상 수익 계산
         expected_profit = start_price - predicted
