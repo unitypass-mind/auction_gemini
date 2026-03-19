@@ -1006,12 +1006,13 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
 
-        // 금액
+        // 금액 (억 단위로 표시)
         Text(
-          amount,
+          _formatToEok(amount),
           style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[700],
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
           ),
           textAlign: TextAlign.center,
         ),
@@ -1525,5 +1526,29 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       ),
     );
+  }
+
+  // 금액을 억 단위로 변환하는 헬퍼 함수
+  String _formatToEok(String amountStr) {
+    try {
+      // "896,000,000원" -> "896000000" -> 896000000
+      String numberStr = amountStr.replaceAll(RegExp(r'[,원]'), '');
+      int amount = int.parse(numberStr);
+
+      // 1억 미만일 경우 만 단위로 표시
+      if (amount < 100000000) {
+        double man = amount / 10000;
+        if (man >= 1000) {
+          return '${(man / 1000).toStringAsFixed(1)}천만';
+        }
+        return '${man.toStringAsFixed(0)}만';
+      }
+
+      // 1억 이상일 경우 억 단위로 표시
+      double eok = amount / 100000000;
+      return '${eok.toStringAsFixed(2)}억';
+    } catch (e) {
+      return amountStr; // 파싱 실패 시 원본 반환
+    }
   }
 }
