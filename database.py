@@ -136,6 +136,7 @@ class PredictionDB:
                 name TEXT,
                 is_active BOOLEAN DEFAULT 1,
                 is_admin BOOLEAN DEFAULT 0,
+                notification_enabled BOOLEAN DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP

@@ -5026,6 +5026,82 @@ async def unsubscribe_auction(
         raise HTTPException(status_code=500, detail="경매 구독 해제 중 오류가 발생했습니다")
 
 
+@app.get("/notifications/settings", tags=["알림 설정"])
+async def get_notification_settings(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    알림 마스터 스위치 상태 조회
+
+    - 사용자의 전체 알림 ON/OFF 설정을 조회합니다
+    """
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT notification_enabled
+            FROM users
+            WHERE id = ?
+        """, (current_user['id'],))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+        return {
+            "success": True,
+            "notification_enabled": bool(row[0])
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"알림 설정 조회 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="알림 설정 조회 중 오류가 발생했습니다")
+
+
+@app.post("/notifications/settings", tags=["알림 설정"])
+async def update_notification_settings(
+    enabled: bool,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    알림 마스터 스위치 ON/OFF
+
+    - 전체 알림을 한번에 켜거나 끌 수 있습니다
+    - OFF 상태에서도 구독 설정은 유지됩니다
+    """
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE users
+            SET notification_enabled = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (1 if enabled else 0, current_user['id']))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(
+            f"알림 설정 변경: user_id={current_user['id']}, enabled={enabled}"
+        )
+
+        return {
+            "success": True,
+            "notification_enabled": enabled,
+            "message": f"알림이 {'켜졌습니다' if enabled else '꺼졌습니다'}"
+        }
+
+    except Exception as e:
+        logger.error(f"알림 설정 변경 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="알림 설정 변경 중 오류가 발생했습니다")
+
+
 # FastAPI 이벤트: 애플리케이션 시작 시 스케줄러 자동 시작
 @app.on_event("startup")
 async def startup_event():
