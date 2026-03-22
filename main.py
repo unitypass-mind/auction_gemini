@@ -2620,7 +2620,7 @@ async def auction(
         auction_info = get_auction_item(formatted_case_no, site)
         start_price = auction_info["감정가_숫자"]
 
-        # 2. AI 예측 낙찰가 (고급 버전 - 88개 특성 사용, 실제 경매 정보 활용)
+        # 2. 기본 경매 정보 추출 (모든 경우에 필요)
         property_type = auction_info.get('물건종류', '아파트')
         region = auction_info.get('지역', '서울')
         area_raw = auction_info.get('면적', '85.0')
@@ -2637,18 +2637,38 @@ async def auction(
             except (ValueError, TypeError):
                 auction_round = 1
 
-        # ValueAuction API에서 받은 실제 최저입찰가 가져오기
-        actual_lowest_bid = auction_info.get('최저입찰가', 0)
+        # 3. AI 예측 낙찰가 (고급 버전 - 88개 특성 사용, 실제 경매 정보 활용)
+        # ✅ 낙찰 완료된 물건은 과거 예측값을 사용 (AI 정확도 입증)
+        actual_selling_price = auction_info.get('낙찰가', 0)
 
-        predicted_price = predict_price_advanced(
-            start_price=start_price,
-            property_type=property_type,
-            region=region,
-            area=area,
-            auction_round=auction_round,
-            bidders=bidders or 10,
-            lowest_bid_price=actual_lowest_bid,  # 실제 최저입찰가 전달
-        )
+        if actual_selling_price > 0:
+            # 이미 낙찰된 물건 - DB에서 과거 예측값 조회
+            try:
+                past_prediction = db.get_prediction_by_case_no(formatted_case_no)
+                if past_prediction and past_prediction.get('predicted_price'):
+                    predicted_price = past_prediction['predicted_price']
+                    logger.info(f"낙찰 완료 물건 - 과거 예측값 사용: {predicted_price:,}원 (실제: {actual_selling_price:,}원)")
+                else:
+                    # 과거 예측 없으면 실제 낙찰가 사용
+                    predicted_price = actual_selling_price
+                    logger.info(f"낙찰 완료 물건 - 과거 예측 없음, 실제 낙찰가 사용: {predicted_price:,}원")
+            except Exception as e:
+                logger.warning(f"과거 예측 조회 실패: {e}, 실제 낙찰가 사용")
+                predicted_price = actual_selling_price
+        else:
+            # 진행 중인 경매 - AI 예측
+            # ValueAuction API에서 받은 실제 최저입찰가 가져오기
+            actual_lowest_bid = auction_info.get('최저입찰가', 0)
+
+            predicted_price = predict_price_advanced(
+                start_price=start_price,
+                property_type=property_type,
+                region=region,
+                area=area,
+                auction_round=auction_round,
+                bidders=bidders or 10,
+                lowest_bid_price=actual_lowest_bid,  # 실제 최저입찰가 전달
+            )
 
         # 3. 실거래가 데이터 가져오기
         market_price = 0  # 0 = 미조회 상태
@@ -2977,76 +2997,88 @@ async def auction(
             "message": "현재 회차 입찰 권장"
         }
 
-        # 회차별 최저가 계산 (표준 경매 감정가율)
-        round_ratios = {
-            1: 1.00,
-            2: 0.80,
-            3: 0.64,
-            4: 0.512,
-            5: 0.4096
-        }
-
-        # 다음 회차 계산 (현재 + 1회차만 고려 - 현실성 중시)
-        next_round = auction_round + 1
-        if next_round <= 5:
-            next_ratio = round_ratios.get(next_round, 0.4096)
-            next_min_bid = int(start_price * next_ratio)
-            potential_savings = lowest_bid_price - next_min_bid
+        # ✅ 최우선 체크: 낙찰 완료된 물건인지 확인
+        actual_selling_price = auction_info.get('낙찰가', 0)
+        if actual_selling_price > 0:
+            # 이미 낙찰된 물건 - 입찰 불가
+            bidding_strategy["recommendation"] = "completed"
+            bidding_strategy["message"] = "입찰 불가 (낙찰 완료)"
+            bidding_strategy["actual_selling_price"] = actual_selling_price
+            bidding_strategy["actual_selling_price_formatted"] = f"{actual_selling_price:,}원"
         else:
-            next_min_bid = lowest_bid_price
-            potential_savings = 0
+            # 진행 중인 경매 - 전략 분석
+            # 회차별 최저가 계산 (표준 경매 감정가율)
+            round_ratios = {
+                1: 1.00,
+                2: 0.80,
+                3: 0.64,
+                4: 0.512,
+                5: 0.4096
+            }
 
-        # 전략 결정 로직 (현실적 판단)
-        price_diff = predicted_price - lowest_bid_price
-        price_diff_pct = (price_diff / lowest_bid_price * 100) if lowest_bid_price > 0 else 0
-
-        # ✅ 최우선 체크: AI 예측가가 최저입찰가보다 낮으면 유찰 대기
-        if predicted_price < lowest_bid_price:
-            # 다음 회차 정보 설정
-            if next_round <= 5 and predicted_price >= next_min_bid:
-                savings = lowest_bid_price - next_min_bid
-                bidding_strategy["recommendation"] = "wait_for_next"
-                bidding_strategy["wait_until_round"] = next_round
-                bidding_strategy["potential_savings"] = savings
-                bidding_strategy["message"] = "유찰 대기 권장"
+            # 다음 회차 계산 (현재 + 1회차만 고려 - 현실성 중시)
+            next_round = auction_round + 1
+            if next_round <= 5:
+                next_ratio = round_ratios.get(next_round, 0.4096)
+                next_min_bid = int(start_price * next_ratio)
+                potential_savings = lowest_bid_price - next_min_bid
             else:
-                # 다음 회차에도 입찰 불가한 경우
-                bidding_strategy["recommendation"] = "cannot_bid"
-                bidding_strategy["message"] = "입찰 불가 (AI 예측가가 낮음)"
+                next_min_bid = lowest_bid_price
+                potential_savings = 0
 
-        elif predicted_price >= lowest_bid_price * 1.05:
-            # AI 예측가가 현재 최저가보다 5% 이상 높음 → 입찰 적정
-            bidding_strategy["recommendation"] = "bid_now"
-            bidding_strategy["message"] = f"현재 회차 입찰 적정 (AI 예측가가 최저가 대비 {price_diff_pct:.1f}% 높음)"
+            # 전략 결정 로직 (현실적 판단)
+            price_diff = predicted_price - lowest_bid_price
+            price_diff_pct = (price_diff / lowest_bid_price * 100) if lowest_bid_price > 0 else 0
 
-        elif predicted_price >= lowest_bid_price:
-            # AI 예측가가 최저가 이상 ~ 105% 미만 → 입찰 가능
-            bidding_strategy["recommendation"] = "bid_now"
-            bidding_strategy["message"] = f"현재 회차 입찰 적정 (AI 예측가가 최저입찰가 범위 내, {price_diff_pct:.1f}% 높음)"
+            # AI 예측가가 최저입찰가보다 낮으면 유찰 대기
+            if predicted_price < lowest_bid_price:
+                # 다음 회차 정보 설정
+                if next_round <= 5 and predicted_price >= next_min_bid:
+                    savings = lowest_bid_price - next_min_bid
+                    bidding_strategy["recommendation"] = "wait_for_next"
+                    bidding_strategy["wait_until_round"] = next_round
+                    bidding_strategy["potential_savings"] = savings
+                    bidding_strategy["message"] = "유찰 대기 권장"
+                else:
+                    # 다음 회차에도 입찰 불가한 경우
+                    bidding_strategy["recommendation"] = "cannot_bid"
+                    bidding_strategy["message"] = "입찰 불가 (AI 예측가가 낮음)"
 
-        # 여기까지 오면 predicted_price >= lowest_bid_price 이므로 입찰 가능
+            elif predicted_price >= lowest_bid_price * 1.05:
+                # AI 예측가가 현재 최저가보다 5% 이상 높음 → 입찰 적정
+                bidding_strategy["recommendation"] = "bid_now"
+                bidding_strategy["message"] = f"현재 회차 입찰 적정 (AI 예측가가 최저가 대비 {price_diff_pct:.1f}% 높음)"
 
-        # 5. 데이터베이스에 예측 저장
-        try:
-            db.save_prediction({
-                'case_no': formatted_case_no,
-                '물건번호': auction_info.get('물건번호') or formatted_case_no,
-                '사건번호': auction_info.get('사건번호') or formatted_case_no,
-                '감정가': start_price,
-                '물건종류': auction_info.get('물건종류'),
-                '지역': auction_info.get('지역'),
-                '면적': float(auction_info.get('면적', '0').replace('㎡', '')) if isinstance(auction_info.get('면적'), str) else auction_info.get('면적', 0),
-                '경매회차': auction_info.get('경매회차', 1),
-                '입찰자수': bidders or 10,
-                'predicted_price': predicted_price,
-                'expected_profit': profit_result.get('예상수익', 0),
-                'profit_rate': profit_result.get('예상수익률', 0),
-                'prediction_mode': 'full_analysis',
-                'model_used': model is not None,
-                'source': 'auction_analysis'
-            })
-        except Exception as e:
-            logger.warning(f"예측 저장 실패 (계속 진행): {e}")
+            elif predicted_price >= lowest_bid_price:
+                # AI 예측가가 최저가 이상 ~ 105% 미만 → 입찰 가능
+                bidding_strategy["recommendation"] = "bid_now"
+                bidding_strategy["message"] = f"현재 회차 입찰 적정 (AI 예측가가 최저입찰가 범위 내, {price_diff_pct:.1f}% 높음)"
+
+        # 5. 데이터베이스에 예측 저장 (낙찰 완료 물건은 제외)
+        if actual_selling_price == 0:
+            # 진행 중인 경매만 예측 저장
+            try:
+                db.save_prediction({
+                    'case_no': formatted_case_no,
+                    '물건번호': auction_info.get('물건번호') or formatted_case_no,
+                    '사건번호': auction_info.get('사건번호') or formatted_case_no,
+                    '감정가': start_price,
+                    '물건종류': auction_info.get('물건종류'),
+                    '지역': auction_info.get('지역'),
+                    '면적': float(auction_info.get('면적', '0').replace('㎡', '')) if isinstance(auction_info.get('면적'), str) else auction_info.get('면적', 0),
+                    '경매회차': auction_info.get('경매회차', 1),
+                    '입찰자수': bidders or 10,
+                    'predicted_price': predicted_price,
+                    'expected_profit': profit_result.get('예상수익', 0),
+                    'profit_rate': profit_result.get('예상수익률', 0),
+                    'prediction_mode': 'full_analysis',
+                    'model_used': model is not None,
+                    'source': 'auction_analysis'
+                })
+            except Exception as e:
+                logger.warning(f"예측 저장 실패 (계속 진행): {e}")
+        else:
+            logger.info(f"낙찰 완료 물건 - 예측 저장 건너뜀: {formatted_case_no} (실제 낙찰가: {actual_selling_price:,}원)")
 
         # 6. 결과 반환
         return JSONResponse(content={
@@ -4193,6 +4225,13 @@ class SendNotificationRequest(BaseModel):
     image_url: Optional[str] = None
 
 
+class AuctionSubscribeRequest(BaseModel):
+    """경매 알림 구독 요청"""
+    case_number: str
+    price_drop_alert: Optional[bool] = True
+    bid_reminder_alert: Optional[bool] = True
+
+
 @app.post("/notifications/subscribe", tags=["알림"])
 async def subscribe_fcm_token(
     token_data: FCMTokenSubscribe,
@@ -4805,6 +4844,186 @@ def stop_notification_scheduler():
         logger.info("알림 스케줄러 종료 완료")
     except Exception as e:
         logger.error(f"스케줄러 종료 실패: {e}", exc_info=True)
+
+
+# ========================================
+# 경매 구독 API
+# ========================================
+
+@app.post("/notifications/auction/subscribe", tags=["경매 구독"])
+async def subscribe_auction(
+    subscription_data: AuctionSubscribeRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    경매 알림 구독
+
+    - 특정 경매에 대한 알림을 구독합니다
+    - 가격 하락 알림 및 입찰 마감 알림을 선택적으로 받을 수 있습니다
+    """
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+
+        # 이미 구독 중인지 확인
+        cursor.execute("""
+            SELECT id FROM auction_subscriptions
+            WHERE user_id = ? AND case_number = ?
+        """, (current_user['id'], subscription_data.case_number))
+
+        existing = cursor.fetchone()
+
+        if existing:
+            # 이미 구독 중이면 설정만 업데이트
+            cursor.execute("""
+                UPDATE auction_subscriptions
+                SET price_drop_alert = ?,
+                    bid_reminder_alert = ?,
+                    notification_enabled = 1,
+                    created_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                subscription_data.price_drop_alert,
+                subscription_data.bid_reminder_alert,
+                existing[0]
+            ))
+            action = "updated"
+            subscription_id = existing[0]
+        else:
+            # 신규 구독
+            cursor.execute("""
+                INSERT INTO auction_subscriptions (
+                    user_id, case_number, price_drop_alert, bid_reminder_alert, notification_enabled
+                ) VALUES (?, ?, ?, ?, 1)
+            """, (
+                current_user['id'],
+                subscription_data.case_number,
+                subscription_data.price_drop_alert,
+                subscription_data.bid_reminder_alert
+            ))
+            subscription_id = cursor.lastrowid
+            action = "created"
+
+        conn.commit()
+        conn.close()
+
+        logger.info(
+            f"경매 구독 {action}: user_id={current_user['id']}, "
+            f"case_number={subscription_data.case_number}"
+        )
+
+        return {
+            "success": True,
+            "message": f"경매 알림 구독이 {action}되었습니다",
+            "subscription_id": subscription_id,
+            "action": action
+        }
+
+    except Exception as e:
+        logger.error(f"경매 구독 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="경매 구독 중 오류가 발생했습니다")
+
+
+@app.get("/notifications/subscriptions", tags=["경매 구독"])
+async def get_my_subscriptions(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    내 구독 목록 조회
+
+    - 사용자가 구독한 모든 경매 목록을 조회합니다
+    """
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                case_number,
+                price_drop_alert,
+                bid_reminder_alert,
+                notification_enabled,
+                created_at
+            FROM auction_subscriptions
+            WHERE user_id = ? AND notification_enabled = 1
+            ORDER BY created_at DESC
+        """, (current_user['id'],))
+
+        rows = cursor.fetchall()
+
+        subscriptions = []
+        for row in rows:
+            subscriptions.append({
+                "id": row[0],
+                "case_number": row[1],
+                "price_drop_alert": bool(row[2]),
+                "bid_reminder_alert": bool(row[3]),
+                "notification_enabled": bool(row[4]),
+                "created_at": row[5]
+            })
+
+        conn.close()
+
+        return {
+            "success": True,
+            "subscriptions": subscriptions,
+            "count": len(subscriptions)
+        }
+
+    except Exception as e:
+        logger.error(f"구독 목록 조회 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="구독 목록 조회 중 오류가 발생했습니다")
+
+
+@app.delete("/notifications/unsubscribe/{subscription_id}", tags=["경매 구독"])
+async def unsubscribe_auction(
+    subscription_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    경매 구독 해제
+
+    - 특정 경매에 대한 알림 구독을 해제합니다
+    """
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+
+        # 해당 구독이 현재 사용자의 것인지 확인
+        cursor.execute("""
+            SELECT id FROM auction_subscriptions
+            WHERE id = ? AND user_id = ?
+        """, (subscription_id, current_user['id']))
+
+        existing = cursor.fetchone()
+
+        if not existing:
+            raise HTTPException(status_code=404, detail="구독을 찾을 수 없습니다")
+
+        # 구독 삭제 (완전 삭제)
+        cursor.execute("""
+            DELETE FROM auction_subscriptions
+            WHERE id = ? AND user_id = ?
+        """, (subscription_id, current_user['id']))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(
+            f"경매 구독 해제: user_id={current_user['id']}, subscription_id={subscription_id}"
+        )
+
+        return {
+            "success": True,
+            "message": "경매 알림 구독이 해제되었습니다"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"경매 구독 해제 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="경매 구독 해제 중 오류가 발생했습니다")
 
 
 # FastAPI 이벤트: 애플리케이션 시작 시 스케줄러 자동 시작

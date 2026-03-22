@@ -260,6 +260,8 @@ class PredictionDB:
                 address_keyword TEXT,
                 min_price INTEGER,
                 max_price INTEGER,
+                price_drop_alert BOOLEAN DEFAULT 1,
+                bid_reminder_alert BOOLEAN DEFAULT 1,
                 notification_enabled BOOLEAN DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
@@ -283,7 +285,7 @@ class PredictionDB:
 
     def save_prediction(self, data: Dict[str, Any]) -> int:
         """
-        예측 결과 저장
+        예측 결과 저장 (같은 사건번호가 있으면 업데이트)
 
         Args:
             data: 예측 정보 딕셔너리
@@ -295,45 +297,97 @@ class PredictionDB:
         cursor = conn.cursor()
 
         try:
-            cursor.execute("""
-                INSERT INTO predictions (
-                    case_no, 물건번호, 사건번호,
-                    감정가, 물건종류, 지역, 면적, 경매회차, 입찰자수,
-                    predicted_price, expected_profit, profit_rate,
-                    prediction_mode, model_used, source,
-                    입찰자수_실제, second_price, 권리분석복잡도, 권리사항태그수,
-                    공유지분_건물, 공유지분_토지, 청구금액, 청구금액비율
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                data.get('case_no'),
-                data.get('물건번호'),
-                data.get('사건번호'),
-                data.get('감정가'),
-                data.get('물건종류'),
-                data.get('지역'),
-                data.get('면적'),
-                data.get('경매회차', 1),
-                data.get('입찰자수', 10),
-                data.get('predicted_price'),
-                data.get('expected_profit'),
-                data.get('profit_rate'),
-                data.get('prediction_mode'),
-                data.get('model_used', True),
-                data.get('source', 'web'),
-                # 신규 변수
-                data.get('입찰자수_실제'),
-                data.get('second_price'),
-                data.get('권리분석복잡도', 0),
-                data.get('권리사항태그수', 0),
-                data.get('공유지분_건물', 0),
-                data.get('공유지분_토지', 0),
-                data.get('청구금액', 0),
-                data.get('청구금액비율', 0),
-            ))
+            case_no = data.get('case_no') or data.get('사건번호')
 
-            record_id = cursor.lastrowid
+            # 같은 사건번호가 이미 있는지 확인
+            cursor.execute("""
+                SELECT id FROM predictions
+                WHERE case_no = ? OR 사건번호 = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (case_no, case_no))
+
+            existing = cursor.fetchone()
+
+            if existing:
+                # 기존 레코드 업데이트
+                cursor.execute("""
+                    UPDATE predictions SET
+                        물건번호 = ?, 사건번호 = ?,
+                        감정가 = ?, 물건종류 = ?, 지역 = ?, 면적 = ?, 경매회차 = ?, 입찰자수 = ?,
+                        predicted_price = ?, expected_profit = ?, profit_rate = ?,
+                        prediction_mode = ?, model_used = ?, source = ?,
+                        입찰자수_실제 = ?, second_price = ?, 권리분석복잡도 = ?, 권리사항태그수 = ?,
+                        공유지분_건물 = ?, 공유지분_토지 = ?, 청구금액 = ?, 청구금액비율 = ?,
+                        created_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (
+                    data.get('물건번호'),
+                    data.get('사건번호'),
+                    data.get('감정가'),
+                    data.get('물건종류'),
+                    data.get('지역'),
+                    data.get('면적'),
+                    data.get('경매회차', 1),
+                    data.get('입찰자수', 10),
+                    data.get('predicted_price'),
+                    data.get('expected_profit'),
+                    data.get('profit_rate'),
+                    data.get('prediction_mode'),
+                    data.get('model_used', True),
+                    data.get('source', 'web'),
+                    data.get('입찰자수_실제'),
+                    data.get('second_price'),
+                    data.get('권리분석복잡도', 0),
+                    data.get('권리사항태그수', 0),
+                    data.get('공유지분_건물', 0),
+                    data.get('공유지분_토지', 0),
+                    data.get('청구금액', 0),
+                    data.get('청구금액비율', 0),
+                    existing['id']
+                ))
+                record_id = existing['id']
+                logger.info(f"기존 예측 업데이트: {case_no} (ID: {record_id})")
+            else:
+                # 새 레코드 삽입
+                cursor.execute("""
+                    INSERT INTO predictions (
+                        case_no, 물건번호, 사건번호,
+                        감정가, 물건종류, 지역, 면적, 경매회차, 입찰자수,
+                        predicted_price, expected_profit, profit_rate,
+                        prediction_mode, model_used, source,
+                        입찰자수_실제, second_price, 권리분석복잡도, 권리사항태그수,
+                        공유지분_건물, 공유지분_토지, 청구금액, 청구금액비율
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    data.get('case_no'),
+                    data.get('물건번호'),
+                    data.get('사건번호'),
+                    data.get('감정가'),
+                    data.get('물건종류'),
+                    data.get('지역'),
+                    data.get('면적'),
+                    data.get('경매회차', 1),
+                    data.get('입찰자수', 10),
+                    data.get('predicted_price'),
+                    data.get('expected_profit'),
+                    data.get('profit_rate'),
+                    data.get('prediction_mode'),
+                    data.get('model_used', True),
+                    data.get('source', 'web'),
+                    data.get('입찰자수_실제'),
+                    data.get('second_price'),
+                    data.get('권리분석복잡도', 0),
+                    data.get('권리사항태그수', 0),
+                    data.get('공유지분_건물', 0),
+                    data.get('공유지분_토지', 0),
+                    data.get('청구금액', 0),
+                    data.get('청구금액비율', 0),
+                ))
+                record_id = cursor.lastrowid
+                logger.info(f"새 예측 저장: {case_no} (ID: {record_id})")
+
             conn.commit()
-            logger.info(f"예측 저장 완료: ID={record_id}, 사건번호={data.get('case_no')}")
             return record_id
 
         except sqlite3.IntegrityError as e:
@@ -549,6 +603,37 @@ class PredictionDB:
         except Exception as e:
             logger.error(f"미검증 예측 조회 실패: {e}", exc_info=True)
             return []
+        finally:
+            conn.close()
+
+    def get_prediction_by_case_no(self, case_no: str) -> Optional[Dict[str, Any]]:
+        """
+        사건번호로 과거 예측값 조회 (가장 최신 예측)
+
+        Args:
+            case_no: 사건번호
+
+        Returns:
+            예측 정보 딕셔너리 또는 None
+        """
+        conn = self._get_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT * FROM predictions
+                WHERE case_no = ? OR 사건번호 = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (case_no, case_no))
+
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+        except Exception as e:
+            logger.error(f"사건번호로 예측 조회 실패: {e}", exc_info=True)
+            return None
         finally:
             conn.close()
 
