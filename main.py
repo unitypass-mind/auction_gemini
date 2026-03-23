@@ -4982,7 +4982,7 @@ async def get_my_subscriptions(
         raise HTTPException(status_code=500, detail="구독 목록 조회 중 오류가 발생했습니다")
 
 
-@app.delete("/notifications/unsubscribe/{subscription_id}", tags=["경매 구독"])
+@app.delete("/notifications/auction/unsubscribe/{subscription_id}", tags=["경매 구독"])
 async def unsubscribe_auction(
     subscription_id: int,
     current_user: dict = Depends(get_current_user)
@@ -4993,7 +4993,7 @@ async def unsubscribe_auction(
     - 특정 경매에 대한 알림 구독을 해제합니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         # 해당 구독이 현재 사용자의 것인지 확인
