@@ -4529,7 +4529,7 @@ async def send_test_notification(current_user: dict = Depends(get_current_user))
     - 현재 로그인한 사용자의 모든 활성 디바이스로 테스트 알림을 전송합니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
