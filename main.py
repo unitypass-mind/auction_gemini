@@ -4533,10 +4533,12 @@ async def send_test_notification(current_user: dict = Depends(get_current_user))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # 사용자의 활성 FCM 토큰 조회
+        # 사용자의 활성 FCM 토큰 조회 (마스터 스위치 확인)
         cursor.execute("""
-            SELECT fcm_token, device_id FROM fcm_tokens
-            WHERE user_id = ? AND is_active = 1
+            SELECT f.fcm_token, f.device_id
+            FROM fcm_tokens f
+            JOIN users u ON f.user_id = u.id
+            WHERE f.user_id = ? AND f.is_active = 1 AND u.notification_enabled = 1
         """, (current_user['id'],))
 
         tokens_data = cursor.fetchall()
