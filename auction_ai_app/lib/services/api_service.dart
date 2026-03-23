@@ -3,16 +3,15 @@
 
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   late Dio _dio;
-  // 에뮬레이터 테스트용: IP 주소 직접 사용
-  static const String baseUrl = 'https://49.50.131.190'; // NCP 서버 IP
+  // 프로덕션 환경: 도메인 사용
+  static const String baseUrl = 'https://auction-ai.kr';
 
-  // 프로덕션 환경에서는 도메인 사용
-  // static const String baseUrl = 'https://auction-ai.kr';
+  // 에뮬레이터 테스트용: IP 주소 직접 사용
+  // static const String baseUrl = 'https://49.50.131.190'; // NCP 서버 IP
 
   // 개발 환경에서는 로컬 서버 사용
   // static const String baseUrl = 'http://localhost:8000';
@@ -20,20 +19,13 @@ class ApiService {
   ApiService() {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
     ));
-
-    // SSL 인증서 검증 우회 (개발/테스트 환경용)
-    (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-      final client = HttpClient();
-      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-      return client;
-    };
 
     // 인터셉터 추가 (JWT 토큰 자동 추가)
     _dio.interceptors.add(InterceptorsWrapper(
@@ -59,7 +51,8 @@ class ApiService {
         // 응답 로깅
         print('=== API Response ===');
         print('Status Code: ${response.statusCode}');
-        print('Data: ${response.data.toString().substring(0, 200)}...');
+        final dataStr = response.data?.toString() ?? '';
+        print('Data: ${dataStr.length > 200 ? dataStr.substring(0, 200) + '...' : dataStr}');
         return handler.next(response);
       },
       onError: (error, handler) async {
@@ -69,6 +62,29 @@ class ApiService {
         print('Error Message: ${error.message}');
         print('Status Code: ${error.response?.statusCode}');
         print('Response Data: ${error.response?.data}');
+        print('Request URL: ${error.requestOptions.baseUrl}${error.requestOptions.path}');
+        print('Request Method: ${error.requestOptions.method}');
+
+        // DioException 타입별 상세 정보
+        if (error.type == DioExceptionType.connectionTimeout) {
+          print('Connection Timeout - Server took too long to respond');
+        } else if (error.type == DioExceptionType.receiveTimeout) {
+          print('Receive Timeout - Server is sending data too slowly');
+        } else if (error.type == DioExceptionType.sendTimeout) {
+          print('Send Timeout - Request took too long to send');
+        } else if (error.type == DioExceptionType.badResponse) {
+          print('Bad Response - Server returned an error');
+        } else if (error.type == DioExceptionType.badCertificate) {
+          print('Bad Certificate - SSL/TLS certificate error');
+          print('Certificate error: ${error.error}');
+        } else if (error.type == DioExceptionType.connectionError) {
+          print('Connection Error - Cannot connect to server');
+          print('Underlying error: ${error.error}');
+        } else if (error.type == DioExceptionType.cancel) {
+          print('Request Cancelled');
+        } else if (error.type == DioExceptionType.unknown) {
+          print('Unknown Error: ${error.error}');
+        }
 
         // 401 Unauthorized 에러 처리 (토큰 만료)
         if (error.response?.statusCode == 401) {
@@ -303,7 +319,7 @@ class ApiService {
     bool? bidReminderAlert,
   }) async {
     try {
-      final response = await _dio.post('/notifications/subscribe', data: {
+      final response = await _dio.post('/notifications/auction/subscribe', data: {
         'case_number': caseNumber,
         if (priceDropAlert != null) 'price_drop_alert': priceDropAlert,
         if (bidReminderAlert != null) 'bid_reminder_alert': bidReminderAlert,
@@ -328,7 +344,7 @@ class ApiService {
   /// 구독 해제
   Future<Map<String, dynamic>> unsubscribe(int subscriptionId) async {
     try {
-      final response = await _dio.delete('/notifications/unsubscribe/$subscriptionId');
+      final response = await _dio.delete('/notifications/auction/unsubscribe/$subscriptionId');
       return response.data;
     } catch (e) {
       throw _handleError(e);
@@ -370,6 +386,53 @@ class ApiService {
   }
 
   // ========================================
+  // 푸시 알림 (FCM)
+  // ========================================
+
+  /// FCM 토큰 등록
+  Future<Map<String, dynamic>> registerFCMToken(String token) async {
+    try {
+      // device_id는 FCM 토큰의 해시값 사용 (디바이스마다 고유)
+      final deviceId = token.hashCode.toRadixString(36);
+
+      final response = await _dio.post('/notifications/subscribe', data: {
+        'fcm_token': token,
+        'device_id': deviceId,
+        'device_type': Platform.isAndroid ? 'android' : 'ios',
+      });
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ========================================
+  // 알림 설정 (마스터 스위치)
+  // ========================================
+
+  /// 알림 마스터 스위치 상태 조회
+  Future<Map<String, dynamic>> getNotificationSettings() async {
+    try {
+      final response = await _dio.get('/notifications/settings');
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// 알림 마스터 스위치 ON/OFF
+  Future<Map<String, dynamic>> updateNotificationSettings(bool enabled) async {
+    try {
+      final response = await _dio.post('/notifications/settings', queryParameters: {
+        'enabled': enabled,
+      });
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ========================================
   // 에러 처리
   // ========================================
 
@@ -377,14 +440,67 @@ class ApiService {
     if (error is DioException) {
       if (error.response != null) {
         // 서버 응답이 있는 경우
+        final statusCode = error.response!.statusCode;
         final data = error.response!.data;
+
+        // 서버가 보낸 detail 메시지 우선 사용
         if (data is Map && data.containsKey('detail')) {
-          return data['detail'];
+          final detail = data['detail'];
+
+          // detail이 Map인 경우 (중첩된 응답)
+          if (detail is Map) {
+            // message 필드가 있으면 사용
+            if (detail.containsKey('message') && detail['message'] is String) {
+              return detail['message'];
+            }
+            // error 필드가 있으면 사용
+            if (detail.containsKey('error') && detail['error'] is String) {
+              return detail['error'];
+            }
+          }
+
+          // detail이 String인 경우 직접 사용
+          if (detail is String) {
+            return detail;
+          }
         }
-        return '서버 오류: ${error.response!.statusCode}';
+
+        // HTTP 상태 코드별 사용자 친화적 메시지
+        switch (statusCode) {
+          case 400:
+            return '입력하신 정보를 확인해주세요';
+          case 401:
+            return '로그인이 필요합니다\n다시 로그인해주세요';
+          case 403:
+            return '접근 권한이 없습니다';
+          case 404:
+            return '해당 사건번호를 찾을 수 없습니다\n사건번호를 다시 확인해주세요';
+          case 422:
+            return '입력값이 올바르지 않습니다';
+          case 500:
+            return '서버 오류가 발생했습니다\n잠시 후 다시 시도해주세요';
+          case 503:
+            return '서버가 일시적으로 사용 불가능합니다';
+          default:
+            return '오류가 발생했습니다 (코드: ${statusCode})';
+        }
       } else {
-        // 네트워크 오류
-        return '네트워크 연결을 확인해주세요';
+        // 네트워크 오류 (서버 응답 없음)
+        // 타입별로 더 상세한 메시지 제공
+        switch (error.type) {
+          case DioExceptionType.connectionTimeout:
+            return '서버 연결 시간이 초과되었습니다\\n네트워크를 확인하고 다시 시도해주세요';
+          case DioExceptionType.receiveTimeout:
+            return '응답 대기 시간이 초과되었습니다\\n잠시 후 다시 시도해주세요';
+          case DioExceptionType.sendTimeout:
+            return '요청 전송 시간이 초과되었습니다\\n네트워크를 확인해주세요';
+          case DioExceptionType.badCertificate:
+            return 'SSL 인증서 오류가 발생했습니다\\n네트워크 설정을 확인해주세요';
+          case DioExceptionType.connectionError:
+            return '서버에 연결할 수 없습니다\\n네트워크 연결을 확인해주세요';
+          default:
+            return '네트워크 연결을 확인해주세요';
+        }
       }
     }
     return '알 수 없는 오류가 발생했습니다';

@@ -19,19 +19,30 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const SearchScreen(),
+  late final List<Widget> _screens = [
+    SearchScreen(key: SearchScreen.globalKey),
     const PredictionScreen(),
     const StatsScreen(),
     const ProfileScreen(),
   ];
 
   /// 외부에서 탭을 전환할 수 있는 메서드
-  void switchTab(int index) {
+  void switchTab(int index, {String? autoSearchCaseNumber}) {
     if (index >= 0 && index < _screens.length) {
       setState(() {
         _currentIndex = index;
       });
+
+      // 검색 탭(0)으로 전환하면서 자동 검색이 요청된 경우
+      if (index == 0 && autoSearchCaseNumber != null) {
+        print('=== HomeScreen: switchTab to search with auto-search ===');
+        print('Case number: $autoSearchCaseNumber');
+
+        // 다음 프레임에서 SearchScreen의 메서드 직접 호출
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          SearchScreen.globalKey.currentState?.performAutoSearch(autoSearchCaseNumber);
+        });
+      }
     }
   }
 

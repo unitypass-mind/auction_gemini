@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
+import 'subscriptions_screen.dart';
+import 'search_history_screen.dart';
+import 'favorites_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -69,9 +73,11 @@ class ProfileScreen extends StatelessWidget {
                     title: '내 구독 목록',
                     subtitle: '경매 알림 구독 관리',
                     onTap: () {
-                      // TODO: 구독 목록 화면으로 이동
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('구독 목록 기능 준비중입니다')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SubscriptionsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -82,9 +88,11 @@ class ProfileScreen extends StatelessWidget {
                     title: '검색 기록',
                     subtitle: '최근 검색한 경매 물건',
                     onTap: () {
-                      // TODO: 검색 기록 화면으로 이동
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('검색 기록 기능 준비중입니다')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SearchHistoryScreen(),
+                        ),
                       );
                     },
                   ),
@@ -95,9 +103,11 @@ class ProfileScreen extends StatelessWidget {
                     title: '관심 목록',
                     subtitle: '즐겨찾기한 경매 물건',
                     onTap: () {
-                      // TODO: 관심 목록 화면으로 이동
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('관심 목록 기능 준비중입니다')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FavoritesScreen(),
+                        ),
                       );
                     },
                   ),
@@ -116,10 +126,7 @@ class ProfileScreen extends StatelessWidget {
                     title: '알림 설정',
                     subtitle: '푸시 알림 설정',
                     onTap: () {
-                      // TODO: 알림 설정 화면으로 이동
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('알림 설정 기능 준비중입니다')),
-                      );
+                      _showNotificationSettings(context);
                     },
                   ),
                   const Divider(height: 1),
@@ -275,6 +282,221 @@ class ProfileScreen extends StatelessWidget {
         SizedBox(height: 16),
         Text('© 2026 Auction AI'),
       ],
+    );
+  }
+
+  void _showNotificationSettings(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationSettingsScreen(),
+      ),
+    );
+  }
+}
+
+// 알림 설정 화면
+class NotificationSettingsScreen extends StatefulWidget {
+  const NotificationSettingsScreen({super.key});
+
+  @override
+  State<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+}
+
+class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+  final ApiService _apiService = ApiService();
+  bool _notificationEnabled = true;
+  bool _isLoading = true;
+  int _subscriptionCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // 마스터 스위치 상태 조회
+      final settingsResponse = await _apiService.getNotificationSettings();
+
+      // 구독 개수 조회
+      final subscriptionsResponse = await _apiService.getMySubscriptions();
+
+      if (mounted) {
+        setState(() {
+          _notificationEnabled = settingsResponse['notification_enabled'] ?? true;
+          _subscriptionCount = subscriptionsResponse['count'] ?? 0;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('설정 로드 실패: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleNotification(bool value) async {
+    try {
+      final response = await _apiService.updateNotificationSettings(value);
+
+      if (response['success'] == true) {
+        setState(() {
+          _notificationEnabled = value;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? '설정이 변경되었습니다'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('설정 변경 실패: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        // 실패 시 이전 상태로 복원
+        setState(() {
+          _notificationEnabled = !value;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('알림 설정'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 마스터 스위치
+                  Card(
+                    child: SwitchListTile(
+                      title: const Text(
+                        '푸시 알림 받기',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _notificationEnabled
+                            ? '모든 알림을 받습니다'
+                            : '모든 알림이 꺼져 있습니다',
+                        style: TextStyle(
+                          color: _notificationEnabled ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                      value: _notificationEnabled,
+                      onChanged: _toggleNotification,
+                      secondary: Icon(
+                        _notificationEnabled
+                            ? Icons.notifications_active
+                            : Icons.notifications_off,
+                        color: _notificationEnabled ? Colors.blue : Colors.grey,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 구독 정보
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.subscriptions, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              const Text(
+                                '구독 정보',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '현재 $_subscriptionCount개 경매를 구독 중입니다',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 안내 문구
+                  Card(
+                    color: Colors.blue[50],
+                    child: const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text(
+                                '알림 설정 안내',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          Text('• 알림을 끄면 모든 푸시 알림이 차단됩니다'),
+                          SizedBox(height: 4),
+                          Text('• 구독 설정은 그대로 유지됩니다'),
+                          SizedBox(height: 4),
+                          Text('• 다시 켜면 기존 구독 그대로 알림이 재개됩니다'),
+                          SizedBox(height: 12),
+                          Divider(),
+                          SizedBox(height: 8),
+                          Text(
+                            '알림 종류:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4),
+                          Text('• 가격 하락 알림: 경매 유찰 시 가격 하락'),
+                          SizedBox(height: 4),
+                          Text('• 입찰 마감 알림: 입찰 마감일 전일'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }

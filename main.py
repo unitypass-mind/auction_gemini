@@ -4248,7 +4248,7 @@ async def subscribe_fcm_token(
         if not notifications.validate_fcm_token(token_data.fcm_token):
             raise HTTPException(status_code=400, detail="유효하지 않은 FCM 토큰 형식입니다")
 
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         # 기존 토큰 확인 (같은 device_id + user_id)

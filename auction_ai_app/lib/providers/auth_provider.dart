@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/fcm_service.dart';
 import '../models/models.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
+  final FCMService _fcmService = FCMService();
 
   User? _user;
   bool _isAuthenticated = false;
@@ -60,6 +62,12 @@ class AuthProvider with ChangeNotifier {
       if (response['success'] == true) {
         _user = User.fromJson(response['user']);
         _isAuthenticated = true;
+
+        // FCM 토큰 등록
+        if (_fcmService.fcmToken != null) {
+          await _fcmService.registerToken(_fcmService.fcmToken!);
+        }
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -93,6 +101,12 @@ class AuthProvider with ChangeNotifier {
       if (response['success'] == true) {
         _user = User.fromJson(response['user']);
         _isAuthenticated = true;
+
+        // FCM 토큰 등록
+        if (_fcmService.fcmToken != null) {
+          await _fcmService.registerToken(_fcmService.fcmToken!);
+        }
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -112,6 +126,9 @@ class AuthProvider with ChangeNotifier {
 
   /// 로그아웃
   Future<void> logout() async {
+    // FCM 토큰 삭제
+    await _fcmService.deleteToken();
+
     await _apiService.logout();
     _user = null;
     _isAuthenticated = false;

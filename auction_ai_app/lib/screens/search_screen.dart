@@ -1,30 +1,121 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../services/api_service.dart';
 import '../models/models.dart';
+import '../providers/selected_auction_provider.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
+
+  /// SearchScreen의 GlobalKey (다른 화면에서 직접 메서드 호출용)
+  static final GlobalKey<_SearchScreenState> globalKey = GlobalKey<_SearchScreenState>();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
   final _caseNumberController = TextEditingController();
 
   FullAnalysisResult? _result;
   bool _isLoading = false;
   String? _error;
+  bool _isFavorite = false;
+  bool _isSubscribed = false; // 구독 상태
+  String? _lastProcessedCaseNumber; // 중복 실행 방지용
+  DateTime? _lastSubscriptionCheck; // 마지막 구독 상태 확인 시간
 
   String _selectedYear = DateTime.now().year.toString();
   final String _caseType = '타경'; // 고정
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 더 이상 Provider를 사용하지 않음 - performAutoSearch()로 직접 호출됨
+  }
+
+  @override
+  void activate() {
+    super.activate();
+
+    // 화면이 다시 활성화될 때 구독 상태 재확인
+    // Consumer가 Provider 상태를 자동으로 반영하므로 캐시 확인 불필요
+    if (_result != null) {
+      print('=== Screen activated, rechecking subscription status via API ===');
+      _checkSubscriptionStatus(_result!.caseNumber);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // 앱이 다시 foreground로 돌아올 때 구독 상태 재확인
+    if (state == AppLifecycleState.resumed && _result != null) {
+      print('=== App resumed, rechecking subscription status ===');
+      _checkSubscriptionStatus(_result!.caseNumber);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _caseNumberController.dispose();
     super.dispose();
   }
+
+  /// 외부에서 사건번호로 자동 검색을 실행하는 public 메서드
+  void performAutoSearch(String caseNumber) {
+    print('=== performAutoSearch called with: $caseNumber ===');
+
+    // 중복 실행 방지
+    if (caseNumber == _lastProcessedCaseNumber) {
+      print('Skipping: already processed this case number');
+      return;
+    }
+
+    // 사건번호 파싱: 예) "2024타경579705" -> 년도: 2024, 번호: 579705
+    final yearMatch = RegExp(r'^(\d{4})').firstMatch(caseNumber);
+    final numberMatch = RegExp(r'타경(\d+)$').firstMatch(caseNumber);
+
+    print('Year match: ${yearMatch?.group(1)}');
+    print('Number match: ${numberMatch?.group(1)}');
+
+    if (yearMatch != null && numberMatch != null) {
+      final year = yearMatch.group(1)!;
+      final number = numberMatch.group(1)!;
+
+      print('Parsed successfully - Year: $year, Number: $number');
+
+      // 중복 실행 방지 플래그 업데이트
+      _lastProcessedCaseNumber = caseNumber;
+
+      setState(() {
+        _selectedYear = year;
+        _caseNumberController.text = number;
+      });
+
+      print('State updated, executing analysis...');
+
+      // 즉시 검색 실행
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        print('Calling _performAnalysis()...');
+        _performAnalysis();
+      });
+    } else {
+      print('ERROR: Failed to parse case number: $caseNumber');
+    }
+  }
+
 
   List<String> get _years {
     final currentYear = DateTime.now().year;
@@ -48,47 +139,8 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      // 먼저 사건번호로 물건 목록 조회
-      final listResponse = await _apiService.listAuctionsByCaseNumber(caseNumber);
-
-      if (listResponse['success'] != true) {
-        setState(() {
-          _error = listResponse['message'] ?? '물건 조회에 실패했습니다';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final int count = listResponse['count'] ?? 0;
-      final List<dynamic> items = listResponse['items'] ?? [];
-
-      if (count == 0) {
-        setState(() {
-          _error = '해당 사건번호의 경매 물건을 찾을 수 없습니다';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // 물건이 1개인 경우 바로 분석
-      if (count == 1) {
-        await _performFullAnalysis(caseNumber);
-        return;
-      }
-
-      // 물건이 여러 개인 경우 선택 다이얼로그 표시
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (!mounted) return;
-
-      final selectedItem = await _showItemSelectionDialog(items);
-
-      if (selectedItem != null) {
-        await _performFullAnalysis(caseNumber, court: selectedItem['court']);
-      }
-
+      // 전체 분석 API 직접 호출
+      await _performFullAnalysis(caseNumber);
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -108,10 +160,21 @@ class _SearchScreenState extends State<SearchScreen> {
       final response = await _apiService.fullAnalysis(caseNumber, site: court);
 
       if (response['success'] == true) {
+        final result = FullAnalysisResult.fromJson(response);
+
         setState(() {
-          _result = FullAnalysisResult.fromJson(response);
+          _result = result;
           _isLoading = false;
         });
+
+        // 검색 성공 시 검색 기록 저장
+        await _saveSearchHistory(caseNumber, result);
+
+        // 즐겨찾기 상태 확인
+        await _checkFavoriteStatus(caseNumber);
+
+        // 구독 상태 확인
+        await _checkSubscriptionStatus(caseNumber);
       } else {
         setState(() {
           _error = response['message'] ?? '분석에 실패했습니다';
@@ -123,6 +186,410 @@ class _SearchScreenState extends State<SearchScreen> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _saveSearchHistory(String caseNumber, FullAnalysisResult result) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getStringList('search_history') ?? [];
+
+      // 검색 기록 항목 생성
+      final historyItem = {
+        'case_number': caseNumber,
+        'property_type': result.propertyType,
+        'address': result.address,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // 중복 제거 (같은 사건번호가 있으면 제거)
+      historyJson.removeWhere((item) {
+        try {
+          final decoded = jsonDecode(item) as Map<String, dynamic>;
+          return decoded['case_number'] == caseNumber;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      // 새 항목 추가 (맨 뒤에 추가, 최신순으로 표시)
+      historyJson.add(jsonEncode(historyItem));
+
+      // 최대 50개까지만 저장
+      if (historyJson.length > 50) {
+        historyJson.removeAt(0);
+      }
+
+      await prefs.setStringList('search_history', historyJson);
+    } catch (e) {
+      // 검색 기록 저장 실패는 무시 (사용자에게 표시하지 않음)
+      print('Failed to save search history: $e');
+    }
+  }
+
+  Future<void> _checkFavoriteStatus(String caseNumber) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final favoritesJson = prefs.getStringList('favorites') ?? [];
+
+      final isFavorite = favoritesJson.any((item) {
+        try {
+          final decoded = jsonDecode(item) as Map<String, dynamic>;
+          return decoded['case_number'] == caseNumber;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      setState(() {
+        _isFavorite = isFavorite;
+      });
+    } catch (e) {
+      print('Failed to check favorite status: $e');
+    }
+  }
+
+  Future<void> _checkSubscriptionStatus(String caseNumber) async {
+    try {
+      print('=== Checking subscription status for: $caseNumber ===');
+
+      final response = await _apiService.getMySubscriptions();
+
+      if (response['success'] == true) {
+        final subscriptions = response['subscriptions'] as List<dynamic>? ?? [];
+        final isSubscribed = subscriptions.any((sub) => sub['case_number'] == caseNumber);
+
+        print('=== Subscription status: $isSubscribed ===');
+
+        // Provider에 상태 저장 (다른 화면에서도 사용 가능)
+        if (mounted) {
+          final provider = Provider.of<SelectedAuctionProvider>(context, listen: false);
+          provider.setSubscriptionState(caseNumber, isSubscribed);
+
+          setState(() {
+            _isSubscribed = isSubscribed;
+          });
+        }
+      }
+    } catch (e) {
+      print('Failed to check subscription status: $e');
+    }
+  }
+
+  Future<void> _showSubscriptionDialog() async {
+    if (_result == null) return;
+
+    // Provider에서 현재 구독 상태 확인
+    final provider = Provider.of<SelectedAuctionProvider>(context, listen: false);
+    final isCurrentlySubscribed = provider.getSubscriptionState(_result!.caseNumber) ?? _isSubscribed;
+
+    // 기본값 설정
+    bool priceDropAlert = true;
+    bool bidReminderAlert = true;
+    Map<String, dynamic>? currentSubscription;
+
+    // 구독 중이라면 현재 설정 가져오기
+    if (isCurrentlySubscribed) {
+      try {
+        final response = await _apiService.getMySubscriptions();
+        if (response['success'] == true) {
+          final subscriptions = response['subscriptions'] as List<dynamic>? ?? [];
+          currentSubscription = subscriptions.firstWhere(
+            (sub) => sub['case_number'] == _result!.caseNumber,
+            orElse: () => null,
+          );
+
+          if (currentSubscription != null) {
+            priceDropAlert = currentSubscription['price_drop_alert'] ?? true;
+            bidReminderAlert = currentSubscription['bid_reminder_alert'] ?? true;
+          }
+        }
+      } catch (e) {
+        print('Failed to get current subscription settings: $e');
+      }
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('알림 구독'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _result!.caseNumber,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _result!.address,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                '받을 알림을 선택하세요:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                title: const Text('가격 하락 알림'),
+                subtitle: const Text('유찰로 인한 가격 하락 시'),
+                value: priceDropAlert,
+                onChanged: (value) {
+                  setState(() {
+                    priceDropAlert = value ?? true;
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              CheckboxListTile(
+                title: const Text('입찰 마감 알림'),
+                subtitle: const Text('입찰 마감일 전일'),
+                value: bidReminderAlert,
+                onChanged: (value) {
+                  setState(() {
+                    bidReminderAlert = value ?? true;
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: isCurrentlySubscribed
+                  ? ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    )
+                  : null,
+              child: Text(isCurrentlySubscribed ? '해제' : '구독'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      if (isCurrentlySubscribed) {
+        // 구독 해제
+        if (currentSubscription != null) {
+          final subscriptionId = currentSubscription['id'] as int;
+          try {
+            final unsubscribeResponse = await _apiService.unsubscribe(subscriptionId);
+
+            if (unsubscribeResponse['success'] == true) {
+              // Provider에 상태 저장 (즉시 반영)
+              provider.setSubscriptionState(_result!.caseNumber, false);
+
+              setState(() {
+                _isSubscribed = false;
+              });
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('구독이 해제되었습니다')),
+                );
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('구독 해제 실패: ${e.toString()}')),
+              );
+            }
+          }
+        }
+      } else {
+        // 구독 추가
+        await _subscribeAuction(
+          priceDropAlert: priceDropAlert,
+          bidReminderAlert: bidReminderAlert,
+        );
+      }
+    }
+  }
+
+  Future<void> _subscribeAuction({
+    required bool priceDropAlert,
+    required bool bidReminderAlert,
+  }) async {
+    if (_result == null) return;
+
+    try {
+      print('=== Subscribing to auction ===');
+      print('Case Number: ${_result!.caseNumber}');
+
+      final response = await _apiService.subscribeAuction(
+        caseNumber: _result!.caseNumber,
+        priceDropAlert: priceDropAlert,
+        bidReminderAlert: bidReminderAlert,
+      );
+
+      print('=== Subscription Response ===');
+      print('Response: $response');
+
+      if (response['success'] == true) {
+        // Provider에 상태 저장 (즉시 반영)
+        final provider = Provider.of<SelectedAuctionProvider>(context, listen: false);
+        provider.setSubscriptionState(_result!.caseNumber, true);
+
+        setState(() {
+          _isSubscribed = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('알림 구독이 완료되었습니다'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // 서버가 success: false를 반환한 경우
+        final message = response['message'] ?? '구독에 실패했습니다';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+      }
+    } catch (e) {
+      print('=== Subscription Error ===');
+      print('Error: $e');
+      print('Error type: ${e.runtimeType}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('구독 실패: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _unsubscribeAuction() async {
+    if (_result == null) return;
+
+    // 구독 ID 찾기
+    try {
+      final response = await _apiService.getMySubscriptions();
+
+      if (response['success'] == true) {
+        final subscriptions = response['subscriptions'] as List<dynamic>? ?? [];
+        final subscription = subscriptions.firstWhere(
+          (sub) => sub['case_number'] == _result!.caseNumber,
+          orElse: () => null,
+        );
+
+        if (subscription != null) {
+          final subscriptionId = subscription['id'] as int;
+
+          final unsubscribeResponse = await _apiService.unsubscribe(subscriptionId);
+
+          if (unsubscribeResponse['success'] == true) {
+            // Provider에 상태 저장 (즉시 반영)
+            final provider = Provider.of<SelectedAuctionProvider>(context, listen: false);
+            provider.setSubscriptionState(_result!.caseNumber, false);
+
+            setState(() {
+              _isSubscribed = false;
+            });
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('구독이 해제되었습니다')),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('구독 해제 실패: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_result == null) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final favoritesJson = prefs.getStringList('favorites') ?? [];
+
+      if (_isFavorite) {
+        // 즐겨찾기 삭제
+        favoritesJson.removeWhere((item) {
+          try {
+            final decoded = jsonDecode(item) as Map<String, dynamic>;
+            return decoded['case_number'] == _result!.caseNumber;
+          } catch (e) {
+            return false;
+          }
+        });
+
+        await prefs.setStringList('favorites', favoritesJson);
+
+        setState(() {
+          _isFavorite = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('즐겨찾기에서 삭제되었습니다')),
+          );
+        }
+      } else {
+        // 즐겨찾기 추가
+        final favoriteItem = {
+          'case_number': _result!.caseNumber,
+          'property_type': _result!.propertyType,
+          'address': _result!.address,
+          'start_price': _result!.startPrice,
+          'predicted_price': _result!.predictedPrice,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+
+        favoritesJson.add(jsonEncode(favoriteItem));
+
+        // 최대 100개까지만 저장
+        if (favoritesJson.length > 100) {
+          favoritesJson.removeAt(0);
+        }
+
+        await prefs.setStringList('favorites', favoritesJson);
+
+        setState(() {
+          _isFavorite = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('즐겨찾기에 추가되었습니다')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -195,7 +662,35 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('전체 분석'),
+        actions: _result != null
+            ? [
+                // 구독 버튼 (Consumer로 자동 업데이트)
+                Consumer<SelectedAuctionProvider>(
+                  builder: (context, provider, child) {
+                    // Provider에서 구독 상태 가져오기 (없으면 로컬 상태 사용)
+                    final isSubscribed = provider.getSubscriptionState(_result?.caseNumber ?? '') ?? _isSubscribed;
+
+                    return IconButton(
+                      icon: Icon(
+                        isSubscribed ? Icons.notifications_active : Icons.notifications_none,
+                      ),
+                      onPressed: _showSubscriptionDialog,
+                      tooltip: isSubscribed ? '구독 설정' : '알림 구독',
+                    );
+                  },
+                ),
+              ]
+            : null,
       ),
+      floatingActionButton: _result != null
+          ? FloatingActionButton(
+              onPressed: _toggleFavorite,
+              tooltip: _isFavorite ? '즐겨찾기 삭제' : '즐겨찾기 추가',
+              child: Icon(
+                _isFavorite ? Icons.favorite : Icons.favorite_border,
+              ),
+            )
+          : null,
       body: Column(
         children: [
           // 검색 입력부
@@ -1217,6 +1712,11 @@ class _SearchScreenState extends State<SearchScreen> {
         recommendationIcon = Icons.cancel;
         recommendationText = '입찰 불가';
         break;
+      case 'completed':
+        recommendationColor = Colors.blue;
+        recommendationIcon = Icons.gavel;
+        recommendationText = '입찰 불가';
+        break;
       default:
         recommendationColor = Colors.grey;
         recommendationIcon = Icons.help;
@@ -1299,6 +1799,9 @@ class _SearchScreenState extends State<SearchScreen> {
             _buildInfoRow('현재 회차', '${strategy.currentRound}회차'),
             _buildInfoRow('현재 최저입찰가', strategy.formattedCurrentMinimum),
             _buildInfoRow('AI 예측가', strategy.formattedPredictedPrice),
+            if (strategy.recommendation == 'completed' && strategy.actualSellingPrice != null) ...{
+              _buildInfoRow('실제 낙찰가', strategy.formattedActualSellingPrice ?? '정보 없음'),
+            },
             if (strategy.waitUntilRound != null) ...{
               _buildInfoRow('대기 권장 회차', '${strategy.waitUntilRound}회차'),
               _buildInfoRow('예상 절감액', strategy.formattedPotentialSavings),

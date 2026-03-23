@@ -442,6 +442,8 @@ class BiddingStrategy {
   final int? waitUntilRound;
   final int potentialSavings;
   final String message;
+  final int? actualSellingPrice;
+  final String? formattedActualSellingPrice;
 
   BiddingStrategy({
     required this.currentRound,
@@ -451,6 +453,8 @@ class BiddingStrategy {
     this.waitUntilRound,
     required this.potentialSavings,
     required this.message,
+    this.actualSellingPrice,
+    this.formattedActualSellingPrice,
   });
 
   factory BiddingStrategy.fromJson(Map<String, dynamic> json) {
@@ -462,6 +466,8 @@ class BiddingStrategy {
       waitUntilRound: json['wait_until_round'],
       potentialSavings: json['potential_savings'] ?? 0,
       message: json['message'] ?? '',
+      actualSellingPrice: json['actual_selling_price'],
+      formattedActualSellingPrice: json['actual_selling_price_formatted'],
     );
   }
 
@@ -511,17 +517,24 @@ class ProfitAnalysis {
   }
 
   String get formattedExpectedProfit {
-    if (expectedProfit >= 100000000) {
-      final eok = expectedProfit ~/ 100000000;
-      final man = (expectedProfit % 100000000) ~/ 10000;
-      if (man > 0) {
-        return '$eok억 ${man}만원';
+    final absProfit = expectedProfit.abs();
+    final sign = expectedProfit < 0 ? '-' : '';
+
+    // 숫자를 천 단위로 쉼표를 추가하여 포맷팅
+    final str = absProfit.toString();
+    final buffer = StringBuffer();
+    int count = 0;
+
+    for (int i = str.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 == 0) {
+        buffer.write(',');
       }
-      return '$eok억원';
-    } else if (expectedProfit >= 10000) {
-      return '${expectedProfit ~/ 10000}만원';
+      buffer.write(str[i]);
+      count++;
     }
-    return '$expectedProfit원';
+
+    final formatted = buffer.toString().split('').reversed.join();
+    return '$sign$formatted원';
   }
 
   String get formattedProfitRate => '${profitRate.toStringAsFixed(1)}%';
