@@ -4641,10 +4641,12 @@ def send_auction_reminders_job():
             placeholders = ','.join('?' * len(user_ids))
 
             cursor.execute(f"""
-                SELECT fcm_token, user_id
-                FROM fcm_tokens
-                WHERE user_id IN ({placeholders})
-                AND is_active = 1
+                SELECT f.fcm_token, f.user_id
+                FROM fcm_tokens f
+                JOIN users u ON f.user_id = u.id
+                WHERE f.user_id IN ({placeholders})
+                AND f.is_active = 1
+                AND u.notification_enabled = 1
             """, user_ids)
 
             tokens_data = cursor.fetchall()
@@ -4746,9 +4748,11 @@ def check_price_drops_job():
                 SELECT DISTINCT f.fcm_token, f.user_id
                 FROM auction_subscriptions s
                 JOIN fcm_tokens f ON s.user_id = f.user_id
+                JOIN users u ON f.user_id = u.id
                 WHERE s.case_number = ?
                 AND s.notification_enabled = 1
                 AND f.is_active = 1
+                AND u.notification_enabled = 1
             """, (case_number,))
 
             tokens_data = cursor.fetchall()
