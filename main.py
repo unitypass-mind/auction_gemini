@@ -3901,7 +3901,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="잘못된 토큰입니다")
 
     # DB에서 사용자 조회
-    conn = db._get_connection()
+    conn = db._get_connection('app')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -3940,7 +3940,7 @@ async def register_user(user_data: UserRegister):
         hashed_password = auth.hash_password(user_data.password)
 
         # DB에 사용자 저장
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         try:
@@ -4009,7 +4009,7 @@ async def login_user(login_data: UserLogin):
     """
     try:
         # DB에서 사용자 조회
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -4096,7 +4096,7 @@ async def refresh_access_token(refresh_data: RefreshTokenRequest):
             raise HTTPException(status_code=401, detail="잘못된 토큰입니다")
 
         # DB에서 사용자 확인
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -4156,7 +4156,7 @@ async def logout_user(
 
         # DB에서 Refresh Token 무효화
         token_hash = auth.hash_password(refresh_data.refresh_token)
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -4331,7 +4331,7 @@ async def unsubscribe_fcm_token(
     - 특정 디바이스의 푸시 알림을 비활성화합니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -4938,7 +4938,7 @@ async def get_my_subscriptions(
     - 사용자가 구독한 모든 경매 목록을 조회합니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -5040,7 +5040,7 @@ async def get_notification_settings(
     - 사용자의 전체 알림 ON/OFF 설정을 조회합니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -5079,7 +5079,7 @@ async def update_notification_settings(
     - OFF 상태에서도 구독 설정은 유지됩니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         cursor.execute("""

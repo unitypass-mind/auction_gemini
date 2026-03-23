@@ -5,7 +5,7 @@
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 import logging
 import numpy as np
 
@@ -13,27 +13,52 @@ logger = logging.getLogger(__name__)
 
 # 데이터베이스 경로
 DB_PATH = Path("data/predictions.db")
+APP_DB_PATH = Path("data/app.db")
 
 
 class PredictionDB:
-    """예측 결과 추적 데이터베이스"""
+    """예측 결과 추적 데이터베이스 (predictions + app 분리)"""
 
-    def __init__(self, db_path: str = None):
-        self.db_path = db_path or DB_PATH
+    def __init__(self, db_path: str = None, app_db_path: str = None):
+        self.predictions_db_path = db_path or DB_PATH
+        self.app_db_path = app_db_path or APP_DB_PATH
         self._ensure_db_directory()
         self._init_db()
 
     def _ensure_db_directory(self):
         """데이터베이스 디렉토리 생성"""
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.predictions_db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.app_db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def _get_connection(self):
-        """데이터베이스 연결"""
-        return sqlite3.connect(self.db_path)
+    def _get_connection(self, db_type: Literal['predictions', 'app'] = 'predictions'):
+        """
+        데이터베이스 연결
+
+        Args:
+            db_type: 'predictions' (예측 데이터) 또는 'app' (사용자/앱 데이터)
+
+        Returns:
+            sqlite3.Connection
+        """
+        if db_type == 'app':
+            return sqlite3.connect(self.app_db_path)
+        else:
+            return sqlite3.connect(self.predictions_db_path)
+
+    # 하위 호환성을 위한 속성
+    @property
+    def db_path(self):
+        """기존 코드 호환성을 위한 속성 (predictions DB 경로 반환)"""
+        return self.predictions_db_path
 
     def _init_db(self):
         """데이터베이스 초기화 및 테이블 생성"""
-        conn = self._get_connection()
+        self._init_predictions_db()
+        self._init_app_db()
+
+    def _init_predictions_db(self):
+        """예측 데이터베이스 초기화"""
+        conn = self._get_connection('predictions')
         cursor = conn.cursor()
 
         # 예측 결과 테이블
@@ -126,6 +151,15 @@ class PredictionDB:
                 UNIQUE(period)
             )
         """)
+
+        conn.commit()
+        conn.close()
+        logger.info(f"Predictions 데이터베이스 초기화 완료: {self.predictions_db_path}")
+
+    def _init_app_db(self):
+        """앱/사용자 데이터베이스 초기화"""
+        conn = self._get_connection('app')
+        cursor = conn.cursor()
 
         # 사용자 테이블 (JWT 인증용)
         cursor.execute("""
@@ -282,7 +316,7 @@ class PredictionDB:
 
         conn.commit()
         conn.close()
-        logger.info(f"데이터베이스 초기화 완료: {self.db_path}")
+        logger.info(f"App 데이터베이스 초기화 완료: {self.app_db_path}")
 
     def save_prediction(self, data: Dict[str, Any]) -> int:
         """
