@@ -4868,7 +4868,7 @@ async def subscribe_auction(
     - 가격 하락 알림 및 입찰 마감 알림을 선택적으로 받을 수 있습니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         cursor = conn.cursor()
 
         # 이미 구독 중인지 확인
