@@ -4377,7 +4377,7 @@ async def send_notification(
         raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다")
 
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -4465,7 +4465,7 @@ async def get_notification_history(
     - 사용자가 받은 푸시 알림 내역을 조회합니다
     """
     try:
-        conn = db._get_connection()
+        conn = db._get_connection('app')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -4594,8 +4594,11 @@ def send_auction_reminders_job():
         # 내일 날짜 계산
         tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
 
-        conn = db._get_connection()
+        conn = db._get_connection()  # predictions.db
         cursor = conn.cursor()
+
+        # app.db attach하여 사용자 데이터 접근
+        cursor.execute(f"ATTACH DATABASE '{db.app_db_path}' AS app_db")
 
         # 내일 경매가 있는 물건 조회
         cursor.execute("""
@@ -4621,7 +4624,7 @@ def send_auction_reminders_job():
             # 이 물건을 구독한 사용자 찾기
             cursor.execute("""
                 SELECT DISTINCT user_id
-                FROM auction_subscriptions
+                FROM app_db.auction_subscriptions
                 WHERE notification_enabled = 1
                 AND (
                     case_number = ?
@@ -4644,8 +4647,8 @@ def send_auction_reminders_job():
 
             cursor.execute(f"""
                 SELECT f.fcm_token, f.user_id
-                FROM fcm_tokens f
-                JOIN users u ON f.user_id = u.id
+                FROM app_db.fcm_tokens f
+                JOIN app_db.users u ON f.user_id = u.id
                 WHERE f.user_id IN ({placeholders})
                 AND f.is_active = 1
                 AND u.notification_enabled = 1
@@ -4682,7 +4685,7 @@ def send_auction_reminders_job():
             # 알림 로그 저장
             for token, user_id in tokens_data:
                 cursor.execute("""
-                    INSERT INTO notification_logs (
+                    INSERT INTO app_db.notification_logs (
                         user_id, notification_type, title, body, data,
                         fcm_token, success, sent_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -4713,8 +4716,11 @@ def check_price_drops_job():
     try:
         logger.info("=== 가격 하락 체크 작업 시작 ===")
 
-        conn = db._get_connection()
+        conn = db._get_connection()  # predictions.db
         cursor = conn.cursor()
+
+        # app.db attach하여 사용자 데이터 접근
+        cursor.execute(f"ATTACH DATABASE '{db.app_db_path}' AS app_db")
 
         # 최근 가격이 하락한 물건 찾기 (최근 7일 이내)
         cursor.execute("""
@@ -4727,7 +4733,7 @@ def check_price_drops_job():
             WHERE a.updated_at >= datetime('now', '-7 days')
             AND a.status IN ('scheduled', 'active')
             AND EXISTS (
-                SELECT 1 FROM auction_subscriptions s
+                SELECT 1 FROM app_db.auction_subscriptions s
                 WHERE s.case_number = a.case_number
                 AND s.notification_enabled = 1
             )
@@ -4748,9 +4754,9 @@ def check_price_drops_job():
             # 이 물건을 구독한 사용자의 FCM 토큰 조회
             cursor.execute("""
                 SELECT DISTINCT f.fcm_token, f.user_id
-                FROM auction_subscriptions s
-                JOIN fcm_tokens f ON s.user_id = f.user_id
-                JOIN users u ON f.user_id = u.id
+                FROM app_db.auction_subscriptions s
+                JOIN app_db.fcm_tokens f ON s.user_id = f.user_id
+                JOIN app_db.users u ON f.user_id = u.id
                 WHERE s.case_number = ?
                 AND s.notification_enabled = 1
                 AND f.is_active = 1
@@ -4788,7 +4794,7 @@ def check_price_drops_job():
             # 알림 로그 저장
             for token, user_id in tokens_data:
                 cursor.execute("""
-                    INSERT INTO notification_logs (
+                    INSERT INTO app_db.notification_logs (
                         user_id, notification_type, title, body, data,
                         fcm_token, success, sent_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
