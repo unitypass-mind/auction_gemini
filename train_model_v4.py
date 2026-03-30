@@ -56,15 +56,23 @@ def create_features_v4(
     pattern_property_round: dict = None,
     pattern_region: dict = None,
     pattern_complex: dict = None,
+    lowest_bid_price: int = None,  # ValueAuction API에서 받은 실제 최저입찰가
 ) -> np.ndarray:
     """
     v4 특성 생성 - v3 + 과거 패턴 특성 추가
     특성 개수: 53 (v3) + 5 (패턴) = 58개
+
+    Args:
+        lowest_bid_price: ValueAuction API에서 받은 법원의 실제 최저입찰가
+                         (None이면 경매회차에 따라 자동 계산)
     """
     features = []
 
-    # ✅ 핵심 개선: 경매회차에 따른 정확한 최저입찰가 계산
-    lowest_bid_price = calc_lowest_price_by_round(start_price, auction_round)
+    # ✅ 핵심 개선: ValueAuction API에서 받은 실제 최저입찰가 사용
+    if lowest_bid_price is None or lowest_bid_price == 0:
+        # fallback: API에서 못 받았을 경우에만 계산
+        lowest_bid_price = calc_lowest_price_by_round(start_price, auction_round)
+
     lowest_price_ratio = lowest_bid_price / start_price if start_price > 0 else 0.8
 
     if bidders_actual is None:
