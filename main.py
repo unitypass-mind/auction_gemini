@@ -3149,53 +3149,7 @@ async def auction(
 
         recent_cases_summary = f"최근 유사 물건 {similar_cases_count}건 분석 완료"
 
-        # 4번: 리스크 분석
-        risk_score = 10 - confidence_stars * 2
-        if auction_round > 3:
-            risk_score = max(0, risk_score - 2)
-
-        if risk_score <= 3:
-            risk_level = "낮음"
-        elif risk_score <= 6:
-            risk_level = "중간"
-        else:
-            risk_level = "높음"
-
-        risk_factors = []
-        safety_factors = []
-
-        if auction_round == 1:
-            risk_factors.append("1회차는 유찰 가능성이 상대적으로 높습니다")
-        if competition_level == "높음":
-            risk_factors.append("경쟁이 치열하여 예상보다 높은 가격에 낙찰될 수 있습니다")
-        if bidders < 3:
-            risk_factors.append("입찰자가 적어 가격 예측의 변동성이 클 수 있습니다")
-
-        if auction_round >= 3:
-            safety_factors.append("3회차 이상으로 낙찰 가능성이 높습니다")
-        if confidence_score >= 80:
-            safety_factors.append("높은 신뢰도의 AI 예측입니다")
-        if competition_level == "낮음":
-            safety_factors.append("경쟁이 낮아 합리적인 가격에 낙찰 가능합니다")
-
-        legal_advice = "권리분석 및 현장조사 필수, 전문가 상담을 권장합니다" if risk_score >= 5 else None
-
-        # 5번: 회차별 가격 추이
-        round_history = []
-        for r in range(1, auction_round + 1):
-            round_price = int(start_price * (0.8 - (r - 1) * 0.1))
-            change_rate = -10.0 * (r - 1) if r > 1 else 0.0
-            round_history.append({
-                "round": r,
-                "price": round_price,
-                "change_rate": change_rate
-            })
-
-        price_trend = "하락" if auction_round > 1 else "안정"
-        next_round_predicted_price = int(start_price * (0.8 - auction_round * 0.1)) if auction_round < 5 else None
-        trend_change_rate = -10.0 if auction_round < 5 else 0.0
-
-        # 6번: 유사 물건 비교 (실제 DB 기반)
+        # 4번: 유사 물건 비교 (실제 DB 기반)
         similar_properties = db.get_similar_properties(property_type, region, area, limit=6)
 
         # 유사 물건이 없으면 빈 리스트
@@ -3212,7 +3166,7 @@ async def auction(
             max_similar_price = max(winning_bids)
             comparison_summary = f"유사 물건 평균 낙찰가는 {avg_similar_price:,}원이며, AI 예측가와 {abs(predicted_price - avg_similar_price):,}원 차이입니다"
 
-        # 7번: 입찰 시뮬레이터
+        # 5번: 입찰 시뮬레이터
         bid_simulations = [
             {
                 "bid_amount": int(predicted_price * 0.98),
@@ -3249,7 +3203,7 @@ async def auction(
         ]
         simulator_guidance = "다양한 입찰가 시나리오를 비교하여 최적의 입찰 전략을 수립하세요"
 
-        # 8번: D-day 알림 + 체크리스트
+        # 6번: D-day 알림 + 체크리스트
         from datetime import datetime, timedelta
 
         # 낙찰 완료된 물건이거나 매각기일 정보가 없으면 D-day 정보 None
@@ -3297,11 +3251,11 @@ async def auction(
             "명도 가능 여부 및 비용 확인"
         ]
 
-        # 9번: AI 학습 피드백
+        # 7번: AI 학습 피드백
         feedback_enabled = True
         feedback_prompt = "이 예측이 실제 낙찰가와 얼마나 일치했는지 피드백을 주시면 AI가 더 정확해집니다!"
 
-        # 10번: 전문가 의견 (커뮤니티)
+        # 8번: 전문가 의견 (커뮤니티)
         expert_tips = [
             "현장 방문 시 주변 편의시설과 교통 접근성을 꼭 확인하세요",
             "권리분석에서 선순위 임차인이 있는지 반드시 체크해야 합니다",
@@ -3660,97 +3614,26 @@ async def predict_simple(
         recent_cases_summary = f"최근 유사 물건 {similar_cases_count}건 분석 완료"
 
         # ============================================
-        # 4번: 리스크 분석
+        # 4번: 유사 물건 비교 (실제 DB 기반)
         # ============================================
-        # 리스크 점수: 낮을수록 안전 (0-10)
-        risk_score = 10 - confidence_stars * 2  # 신뢰도가 높을수록 리스크 낮음
-        if auction_round > 3:
-            risk_score = max(0, risk_score - 2)  # 회차 많으면 리스크 감소
+        similar_properties = db.get_similar_properties(property_type, region, area, limit=6)
 
-        if risk_score <= 3:
-            risk_level = "낮음"
-        elif risk_score <= 6:
-            risk_level = "중간"
+        # 유사 물건이 없으면 빈 리스트
+        if not similar_properties:
+            similar_properties = []
+            avg_similar_price = predicted
+            min_similar_price = predicted
+            max_similar_price = predicted
+            comparison_summary = "유사 물건 데이터가 부족합니다"
         else:
-            risk_level = "높음"
-
-        risk_factors = []
-        safety_factors = []
-
-        if auction_round == 1:
-            risk_factors.append("1회차는 유찰 가능성이 상대적으로 높습니다")
-        if competition_level == "높음":
-            risk_factors.append("경쟁이 치열하여 예상보다 높은 가격에 낙찰될 수 있습니다")
-        if bidders < 3:
-            risk_factors.append("입찰자가 적어 가격 예측의 변동성이 클 수 있습니다")
-
-        if auction_round >= 3:
-            safety_factors.append("3회차 이상으로 낙찰 가능성이 높습니다")
-        if confidence_score >= 80:
-            safety_factors.append("높은 신뢰도의 AI 예측입니다")
-        if competition_level == "낮음":
-            safety_factors.append("경쟁이 낮아 합리적인 가격에 낙찰 가능합니다")
-
-        legal_advice = "권리분석 및 현장조사 필수, 전문가 상담을 권장합니다" if risk_score >= 5 else None
+            winning_bids = [p["winning_bid"] for p in similar_properties]
+            avg_similar_price = int(sum(winning_bids) / len(winning_bids))
+            min_similar_price = min(winning_bids)
+            max_similar_price = max(winning_bids)
+            comparison_summary = f"유사 물건 평균 낙찰가는 {avg_similar_price:,}원이며, AI 예측가와 {abs(predicted - avg_similar_price):,}원 차이입니다"
 
         # ============================================
-        # 5번: 회차별 가격 추이
-        # ============================================
-        round_history = []
-        for r in range(1, auction_round + 1):
-            round_price = int(start_price * (0.8 - (r - 1) * 0.1))  # 회차마다 -10%
-            change_rate = -10.0 * (r - 1) if r > 1 else 0.0
-            round_history.append({
-                "round": r,
-                "price": round_price,
-                "change_rate": change_rate
-            })
-
-        price_trend = "하락" if auction_round > 1 else "안정"
-        next_round_predicted_price = int(start_price * (0.8 - auction_round * 0.1)) if auction_round < 5 else None
-        trend_change_rate = -10.0 if auction_round < 5 else 0.0
-
-        # ============================================
-        # 6번: 유사 물건 비교
-        # ============================================
-        similar_properties = [
-            {
-                "address": f"{region or '서울'} 인근 아파트 A동",
-                "property_type": property_type or "아파트",
-                "area": area * 0.95 if area else 80.0,
-                "winning_bid": int(predicted * 0.97),
-                "auction_date": "2024-11-15",
-                "similarity_score": 92,
-                "court": "서울중앙지방법원"
-            },
-            {
-                "address": f"{region or '서울'} 인근 아파트 B동",
-                "property_type": property_type or "아파트",
-                "area": area * 1.05 if area else 90.0,
-                "winning_bid": int(predicted * 1.03),
-                "auction_date": "2024-11-20",
-                "similarity_score": 88,
-                "court": "서울중앙지방법원"
-            },
-            {
-                "address": f"{region or '서울'} 인근 아파트 C동",
-                "property_type": property_type or "아파트",
-                "area": area if area else 85.0,
-                "winning_bid": int(predicted * 0.99),
-                "auction_date": "2024-11-25",
-                "similarity_score": 85,
-                "court": "서울중앙지방법원"
-            }
-        ]
-
-        winning_bids = [p["winning_bid"] for p in similar_properties]
-        avg_similar_price = int(sum(winning_bids) / len(winning_bids))
-        min_similar_price = min(winning_bids)
-        max_similar_price = max(winning_bids)
-        comparison_summary = f"유사 물건 평균 낙찰가는 {avg_similar_price:,}원이며, AI 예측가와 {abs(predicted - avg_similar_price):,}원 차이입니다"
-
-        # ============================================
-        # 7번: 입찰 시뮬레이터
+        # 5번: 입찰 시뮬레이터
         # ============================================
         bid_simulations = [
             {
@@ -3781,7 +3664,7 @@ async def predict_simple(
         simulator_guidance = "다양한 입찰가 시나리오를 비교하여 최적의 입찰 전략을 수립하세요"
 
         # ============================================
-        # 8번: D-day 알림 + 체크리스트
+        # 6번: D-day 알림 + 체크리스트
         # ============================================
         # 예시: 30일 후 경매 가정
         from datetime import datetime, timedelta
@@ -3806,13 +3689,13 @@ async def predict_simple(
         ]
 
         # ============================================
-        # 9번: AI 학습 피드백
+        # 7번: AI 학습 피드백
         # ============================================
         feedback_enabled = True
         feedback_prompt = "이 예측이 실제 낙찰가와 얼마나 일치했는지 피드백을 주시면 AI가 더 정확해집니다!"
 
         # ============================================
-        # 10번: 전문가 의견 (커뮤니티)
+        # 8번: 전문가 의견 (커뮤니티)
         # ============================================
         expert_tips = [
             "현장 방문 시 주변 편의시설과 교통 접근성을 꼭 확인하세요",
@@ -3862,58 +3745,45 @@ async def predict_simple(
                 "safe_bid_probability": safe_bid_probability,
                 "aggressive_bid_probability": aggressive_bid_probability,
 
-                # 2번: 예측 신뢰도 정보
-                "confidence_score": confidence_score,
-                "confidence_stars": confidence_stars,
-                "similar_cases_count": similar_cases_count,
-                "regional_data_count": regional_data_count,
-                "confidence_reasons": confidence_reasons,
-                "confidence_warnings": confidence_warnings,
-
-                # 3번: 경쟁 분석 정보
+                # 2번: 경쟁 분석 정보
                 "competition_level": competition_level,
                 "avg_bidder_count": avg_bidder_count,
                 "avg_success_rate": avg_success_rate,
                 "recent_cases_summary": recent_cases_summary,
 
-                # 4번: 리스크 분석 정보
-                "risk_score": risk_score,
-                "risk_level": risk_level,
-                "risk_factors": risk_factors,
-                "safety_factors": safety_factors,
-                "legal_advice": legal_advice,
-
-                # 5번: 회차별 가격 추이 정보
-                "round_history": round_history,
-                "price_trend": price_trend,
-                "next_round_predicted_price": next_round_predicted_price,
-                "trend_change_rate": trend_change_rate,
-
-                # 6번: 유사 물건 비교 정보
+                # 3번: 유사 물건 비교 정보
                 "similar_properties": similar_properties,
                 "avg_similar_price": avg_similar_price,
                 "min_similar_price": min_similar_price,
                 "max_similar_price": max_similar_price,
                 "comparison_summary": comparison_summary,
 
-                # 7번: 입찰 시뮬레이터 정보
+                # 4번: 입찰 시뮬레이터 정보
                 "bid_simulations": bid_simulations,
                 "simulator_guidance": simulator_guidance,
 
-                # 8번: D-day 알림 + 체크리스트 정보
+                # 5번: D-day 알림 + 체크리스트 정보
                 "days_until_auction": days_until_auction,
                 "auction_date_time": auction_date_time,
                 "preparation_checklist": preparation_checklist,
                 "urgency_message": urgency_message,
 
-                # 9번: AI 학습 피드백 정보
+                # 6번: AI 학습 피드백 정보
                 "feedback_enabled": feedback_enabled,
                 "feedback_prompt": feedback_prompt,
 
-                # 10번: 전문가 의견 (커뮤니티) 정보
+                # 7번: 전문가 의견 (커뮤니티) 정보
                 "expert_tips": expert_tips,
                 "community_insight": community_insight,
-                "similar_case_discussions": similar_case_discussions
+                "similar_case_discussions": similar_case_discussions,
+
+                # 8번: 예측 신뢰도 정보 (맨 마지막)
+                "confidence_score": confidence_score,
+                "confidence_stars": confidence_stars,
+                "similar_cases_count": similar_cases_count,
+                "regional_data_count": regional_data_count,
+                "confidence_reasons": confidence_reasons,
+                "confidence_warnings": confidence_warnings
             },
             "input": {
                 "property_type": property_type or "아파트",
