@@ -51,6 +51,17 @@ class Settings(BaseSettings):
     REALTRADE_API_URL: str = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
 
     # ================================
+    # 이메일 설정 (Gmail SMTP)
+    # ================================
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None  # Gmail 주소
+    SMTP_PASSWORD: Optional[str] = None  # Gmail 앱 비밀번호
+    SMTP_FROM_EMAIL: Optional[str] = None  # 발신자 이메일
+    SMTP_FROM_NAME: str = "경매 AI"
+    PASSWORD_RESET_URL_BASE: str = "http://localhost:8000"  # 앱의 딥링크 또는 웹 URL
+
+    # ================================
     # 보안 설정
     # ================================
     RATE_LIMIT_PER_MINUTE: int = 60
