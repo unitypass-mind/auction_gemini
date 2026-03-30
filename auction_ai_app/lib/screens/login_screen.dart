@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../providers/auth_provider.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -228,6 +229,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                         const SizedBox(height: 16),
+
+                        // 비밀번호 찾기 (로그인 모드일 때만)
+                        if (_isLoginMode) ...[
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ForgotPasswordScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                '비밀번호를 잊으셨나요?',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ],
 
                         // 모드 전환 버튼
                         TextButton(

@@ -110,12 +110,18 @@ class ApiService {
   /// [propertyType]: 물건종류
   /// [minPrice]: 최소가격
   /// [maxPrice]: 최대가격
+  /// [minArea]: 최소면적 (㎡)
+  /// [maxArea]: 최대면적 (㎡)
+  /// [status]: 경매 상태 (전체/경매중/입찰완료)
   Future<Map<String, dynamic>> searchAuctions({
     String? query,
     String? region,
     String? propertyType,
     int? minPrice,
     int? maxPrice,
+    double? minArea,
+    double? maxArea,
+    String? status,
   }) async {
     try {
       final response = await _dio.get('/auctions/search', queryParameters: {
@@ -124,6 +130,9 @@ class ApiService {
         if (propertyType != null) 'property_type': propertyType,
         if (minPrice != null) 'min_price': minPrice,
         if (maxPrice != null) 'max_price': maxPrice,
+        if (minArea != null) 'min_area': minArea,
+        if (maxArea != null) 'max_area': maxArea,
+        if (status != null) 'status': status,
       });
 
       return response.data;
@@ -289,6 +298,52 @@ class ApiService {
   Future<Map<String, dynamic>> getMyInfo() async {
     try {
       final response = await _dio.get('/auth/me');
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// 비밀번호 변경
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/change-password', data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      });
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// 비밀번호 찾기 (이메일로 재설정 토큰 발송)
+  Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/forgot-password', data: {
+        'email': email,
+      });
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// 비밀번호 재설정 (토큰 사용)
+  Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/reset-password', data: {
+        'token': token,
+        'new_password': newPassword,
+      });
       return response.data;
     } catch (e) {
       throw _handleError(e);

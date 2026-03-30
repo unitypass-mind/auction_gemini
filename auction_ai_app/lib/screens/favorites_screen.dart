@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../providers/selected_auction_provider.dart';
+import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -26,8 +27,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id ?? 0;
+
+      if (userId == 0) {
+        setState(() {
+          _favorites = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      final favoritesJson = prefs.getStringList('favorites') ?? [];
+      final favoritesJson = prefs.getStringList('favorites_$userId') ?? [];
 
       setState(() {
         _favorites = favoritesJson
@@ -67,14 +79,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     if (confirm == true) {
       try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final userId = authProvider.user?.id ?? 0;
+
+        if (userId == 0) return;
+
         final prefs = await SharedPreferences.getInstance();
-        final favoritesJson = prefs.getStringList('favorites') ?? [];
+        final favoritesJson = prefs.getStringList('favorites_$userId') ?? [];
 
         // reversed 했으므로 실제 인덱스는 반대
         final actualIndex = favoritesJson.length - 1 - index;
         favoritesJson.removeAt(actualIndex);
 
-        await prefs.setStringList('favorites', favoritesJson);
+        await prefs.setStringList('favorites_$userId', favoritesJson);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -114,8 +131,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     if (confirm == true) {
       try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final userId = authProvider.user?.id ?? 0;
+
+        if (userId == 0) return;
+
         final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('favorites');
+        await prefs.remove('favorites_$userId');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

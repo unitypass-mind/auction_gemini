@@ -72,6 +72,188 @@ class AuctionItem {
 }
 
 // ========================================
+// 입찰 시뮬레이션 모델
+// ========================================
+
+class BidSimulation {
+  final int bidAmount;          // 입찰 금액
+  final int winProbability;     // 낙찰 확률 (%)
+  final int expectedProfit;     // 예상 수익
+  final double profitRate;      // 수익률 (%)
+  final String recommendation;  // 추천 문구
+  final int estimatedBidders;   // 예상 입찰자 수
+
+  BidSimulation({
+    required this.bidAmount,
+    required this.winProbability,
+    required this.expectedProfit,
+    required this.profitRate,
+    required this.recommendation,
+    required this.estimatedBidders,
+  });
+
+  factory BidSimulation.fromJson(Map<String, dynamic> json) {
+    return BidSimulation(
+      bidAmount: json['bid_amount'] ?? 0,
+      winProbability: json['win_probability'] ?? 0,
+      expectedProfit: json['expected_profit'] ?? 0,
+      profitRate: (json['profit_rate'] ?? 0).toDouble(),
+      recommendation: json['recommendation'] ?? '',
+      estimatedBidders: json['estimated_bidders'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'bid_amount': bidAmount,
+      'win_probability': winProbability,
+      'expected_profit': expectedProfit,
+      'profit_rate': profitRate,
+      'recommendation': recommendation,
+      'estimated_bidders': estimatedBidders,
+    };
+  }
+
+  String get formattedBidAmount {
+    if (bidAmount >= 100000000) {
+      final eok = bidAmount ~/ 100000000;
+      final man = (bidAmount % 100000000) ~/ 10000;
+      if (man > 0) {
+        return '$eok억 ${man}만원';
+      }
+      return '$eok억원';
+    } else if (bidAmount >= 10000) {
+      return '${bidAmount ~/ 10000}만원';
+    }
+    return '${bidAmount}원';
+  }
+
+  String get formattedExpectedProfit {
+    final absProfit = expectedProfit.abs();
+    final sign = expectedProfit < 0 ? '-' : '';
+    if (absProfit >= 100000000) {
+      final eok = absProfit ~/ 100000000;
+      final man = (absProfit % 100000000) ~/ 10000;
+      if (man > 0) {
+        return '$sign$eok억 ${man}만원';
+      }
+      return '$sign$eok억원';
+    } else if (absProfit >= 10000) {
+      return '$sign${absProfit ~/ 10000}만원';
+    }
+    return '$sign${absProfit}원';
+  }
+}
+
+// ========================================
+// 유사 물건 모델
+// ========================================
+
+class SimilarProperty {
+  final String address;           // 소재지
+  final String? propertyType;     // 물건 종류
+  final double? area;             // 면적 (㎡)
+  final int winningBid;           // 낙찰가
+  final String? auctionDate;      // 경매일
+  final int similarityScore;      // 유사도 점수 (0-100)
+  final String? court;            // 법원
+
+  SimilarProperty({
+    required this.address,
+    this.propertyType,
+    this.area,
+    required this.winningBid,
+    this.auctionDate,
+    required this.similarityScore,
+    this.court,
+  });
+
+  factory SimilarProperty.fromJson(Map<String, dynamic> json) {
+    return SimilarProperty(
+      address: json['address'] ?? '',
+      propertyType: json['property_type'],
+      area: (json['area'])?.toDouble(),
+      winningBid: json['winning_bid'] ?? 0,
+      auctionDate: json['auction_date'],
+      similarityScore: json['similarity_score'] ?? 0,
+      court: json['court'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'address': address,
+      'property_type': propertyType,
+      'area': area,
+      'winning_bid': winningBid,
+      'auction_date': auctionDate,
+      'similarity_score': similarityScore,
+      'court': court,
+    };
+  }
+
+  String get formattedWinningBid {
+    if (winningBid >= 100000000) {
+      final eok = winningBid ~/ 100000000;
+      final man = (winningBid % 100000000) ~/ 10000;
+      if (man > 0) {
+        return '$eok억 ${man}만원';
+      }
+      return '$eok억원';
+    } else if (winningBid >= 10000) {
+      return '${winningBid ~/ 10000}만원';
+    }
+    return '${winningBid}원';
+  }
+}
+
+// ========================================
+// 회차별 가격 이력 모델
+// ========================================
+
+class RoundHistory {
+  final int round;           // 회차
+  final int price;           // 가격
+  final double changeRate;   // 변화율 (%)
+
+  RoundHistory({
+    required this.round,
+    required this.price,
+    required this.changeRate,
+  });
+
+  factory RoundHistory.fromJson(Map<String, dynamic> json) {
+    return RoundHistory(
+      round: json['round'] ?? 0,
+      price: json['price'] ?? 0,
+      changeRate: (json['change_rate'] ?? 0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'round': round,
+      'price': price,
+      'change_rate': changeRate,
+    };
+  }
+
+  String get formattedPrice {
+    if (price >= 100000000) {
+      final eok = price ~/ 100000000;
+      final man = (price % 100000000) ~/ 10000;
+      if (man > 0) {
+        return '$eok억 ${man}만원';
+      }
+      return '$eok억원';
+    } else if (price >= 10000) {
+      return '${price ~/ 10000}만원';
+    }
+    return '${price}원';
+  }
+}
+
+// ========================================
 // AI 예측 결과 모델
 // ========================================
 
@@ -89,6 +271,69 @@ class PredictionResult {
   final int? featuresCount;
   final String? warning;
 
+  // 입찰 전략 정보
+  final int? confidenceLowerBound;  // 신뢰구간 하한
+  final int? confidenceUpperBound;  // 신뢰구간 상한
+  final int? safeBidPrice;          // 안전 입찰가
+  final int? aggressiveBidPrice;    // 공격 입찰가
+  final int? recommendedBidPrice;   // 권장 입찰가
+  final int? safeBidProbability;    // 안전 입찰 확률
+  final int? aggressiveBidProbability;  // 공격 입찰 확률
+
+  // 예측 신뢰도 정보
+  final int? confidenceScore;       // 신뢰도 점수 (0-100)
+  final int? confidenceStars;       // 별점 (1-5)
+  final int? similarCasesCount;     // 유사 사례 개수
+  final int? regionalDataCount;     // 지역 데이터 개수
+  final List<String>? confidenceReasons;   // 높은 신뢰도 이유
+  final List<String>? confidenceWarnings;  // 주의사항
+
+  // 경쟁 분석 정보
+  final String? competitionLevel;    // 경쟁 강도 (낮음/중간/높음)
+  final int? viewCount;              // 조회수
+  final int? avgBidderCount;         // 평균 입찰자 수
+  final double? avgSuccessRate;      // 평균 낙찰률 (%)
+  final String? recentCasesSummary;  // 최근 사례 요약
+
+  // 리스크 분석 정보
+  final int? riskScore;              // 종합 리스크 점수 (0-10, 낮을수록 안전)
+  final String? riskLevel;           // 리스크 수준 (낮음/중간/높음)
+  final List<String>? riskFactors;   // 주요 리스크 요인
+  final List<String>? safetyFactors; // 안전 요소
+  final String? legalAdvice;         // 법률 자문 권장사항
+
+  // 회차별 가격 추이 정보
+  final List<RoundHistory>? roundHistory;  // 회차별 가격 이력
+  final String? priceTrend;                // 가격 추세 (상승/하락/안정)
+  final int? nextRoundPredictedPrice;      // 다음 회차 예상가
+  final double? trendChangeRate;           // 추세 변화율 (%)
+
+  // 유사 물건 비교 정보
+  final List<SimilarProperty>? similarProperties;  // 유사 물건 목록
+  final int? avgSimilarPrice;                      // 유사 물건 평균 낙찰가
+  final int? minSimilarPrice;                      // 유사 물건 최저 낙찰가
+  final int? maxSimilarPrice;                      // 유사 물건 최고 낙찰가
+  final String? comparisonSummary;                 // 비교 요약
+
+  // 입찰 시뮬레이터 정보
+  final List<BidSimulation>? bidSimulations;       // 입찰 시뮬레이션 시나리오들
+  final String? simulatorGuidance;                 // 시뮬레이터 안내 메시지
+
+  // D-day 알림 + 체크리스트 정보
+  final int? daysUntilAuction;                     // 경매일까지 남은 일수
+  final String? auctionDateTime;                   // 경매 일시
+  final List<String>? preparationChecklist;        // 준비사항 체크리스트
+  final String? urgencyMessage;                    // 긴급도 메시지
+
+  // AI 학습 피드백 정보
+  final String? feedbackPrompt;                    // 피드백 요청 메시지
+  final bool? feedbackEnabled;                     // 피드백 활성화 여부
+
+  // 전문가 의견 (커뮤니티) 정보
+  final List<String>? expertTips;                  // 전문가 팁
+  final String? communityInsight;                  // 커뮤니티 인사이트
+  final int? similarCaseDiscussions;               // 유사 사례 토론 수
+
   PredictionResult({
     required this.startPrice,
     required this.predictedPrice,
@@ -102,6 +347,49 @@ class PredictionResult {
     this.predictionMode,
     this.featuresCount,
     this.warning,
+    this.confidenceLowerBound,
+    this.confidenceUpperBound,
+    this.safeBidPrice,
+    this.aggressiveBidPrice,
+    this.recommendedBidPrice,
+    this.safeBidProbability,
+    this.aggressiveBidProbability,
+    this.confidenceScore,
+    this.confidenceStars,
+    this.similarCasesCount,
+    this.regionalDataCount,
+    this.confidenceReasons,
+    this.confidenceWarnings,
+    this.competitionLevel,
+    this.viewCount,
+    this.avgBidderCount,
+    this.avgSuccessRate,
+    this.recentCasesSummary,
+    this.riskScore,
+    this.riskLevel,
+    this.riskFactors,
+    this.safetyFactors,
+    this.legalAdvice,
+    this.roundHistory,
+    this.priceTrend,
+    this.nextRoundPredictedPrice,
+    this.trendChangeRate,
+    this.similarProperties,
+    this.avgSimilarPrice,
+    this.minSimilarPrice,
+    this.maxSimilarPrice,
+    this.comparisonSummary,
+    this.bidSimulations,
+    this.simulatorGuidance,
+    this.daysUntilAuction,
+    this.auctionDateTime,
+    this.preparationChecklist,
+    this.urgencyMessage,
+    this.feedbackPrompt,
+    this.feedbackEnabled,
+    this.expertTips,
+    this.communityInsight,
+    this.similarCaseDiscussions,
   });
 
   factory PredictionResult.fromJson(Map<String, dynamic> json) {
@@ -122,22 +410,81 @@ class PredictionResult {
       predictionMode: data['prediction_mode'],
       featuresCount: data['features_count'],
       warning: data['warning'],
+      confidenceLowerBound: data['confidence_lower_bound'],
+      confidenceUpperBound: data['confidence_upper_bound'],
+      safeBidPrice: data['safe_bid_price'],
+      aggressiveBidPrice: data['aggressive_bid_price'],
+      recommendedBidPrice: data['recommended_bid_price'],
+      safeBidProbability: data['safe_bid_probability'],
+      aggressiveBidProbability: data['aggressive_bid_probability'],
+      confidenceScore: data['confidence_score'],
+      confidenceStars: data['confidence_stars'],
+      similarCasesCount: data['similar_cases_count'],
+      regionalDataCount: data['regional_data_count'],
+      confidenceReasons: (data['confidence_reasons'] as List?)?.map((e) => e.toString()).toList(),
+      confidenceWarnings: (data['confidence_warnings'] as List?)?.map((e) => e.toString()).toList(),
+      competitionLevel: data['competition_level'],
+      viewCount: data['view_count'],
+      avgBidderCount: data['avg_bidder_count'],
+      avgSuccessRate: (data['avg_success_rate'])?.toDouble(),
+      recentCasesSummary: data['recent_cases_summary'],
+      riskScore: data['risk_score'],
+      riskLevel: data['risk_level'],
+      riskFactors: (data['risk_factors'] as List?)?.map((e) => e.toString()).toList(),
+      safetyFactors: (data['safety_factors'] as List?)?.map((e) => e.toString()).toList(),
+      legalAdvice: data['legal_advice'],
+      roundHistory: (data['round_history'] as List?)?.map((e) => RoundHistory.fromJson(e as Map<String, dynamic>)).toList(),
+      priceTrend: data['price_trend'],
+      nextRoundPredictedPrice: data['next_round_predicted_price'],
+      trendChangeRate: (data['trend_change_rate'])?.toDouble(),
+      similarProperties: (data['similar_properties'] as List?)?.map((e) => SimilarProperty.fromJson(e as Map<String, dynamic>)).toList(),
+      avgSimilarPrice: data['avg_similar_price'],
+      minSimilarPrice: data['min_similar_price'],
+      maxSimilarPrice: data['max_similar_price'],
+      comparisonSummary: data['comparison_summary'],
+      bidSimulations: (data['bid_simulations'] as List?)?.map((e) => BidSimulation.fromJson(e as Map<String, dynamic>)).toList(),
+      simulatorGuidance: data['simulator_guidance'],
+      daysUntilAuction: data['days_until_auction'],
+      auctionDateTime: data['auction_date_time'],
+      preparationChecklist: (data['preparation_checklist'] as List?)?.map((e) => e.toString()).toList(),
+      urgencyMessage: data['urgency_message'],
+      feedbackPrompt: data['feedback_prompt'],
+      feedbackEnabled: data['feedback_enabled'],
+      expertTips: (data['expert_tips'] as List?)?.map((e) => e.toString()).toList(),
+      communityInsight: data['community_insight'],
+      similarCaseDiscussions: data['similar_case_discussions'],
     );
   }
 
   String get formattedPredictedPrice =>
-      '${_formatNumber(predictedPrice)}원';
+      '${formatNumber(predictedPrice)}원';
 
   String get formattedExpectedProfit {
     final absProfit = expectedProfit.abs();
     final sign = expectedProfit < 0 ? '-' : '';
-    return '$sign${_formatNumber(absProfit)}원';
+    return '$sign${formatNumber(absProfit)}원';
   }
 
   String get formattedProfitRate =>
       '${profitRate.toStringAsFixed(1)}%';
 
-  static String _formatNumber(int number) {
+  // 입찰 전략 관련 포맷팅 메서드
+  String? get formattedConfidenceLowerBound =>
+      confidenceLowerBound != null ? '${formatNumber(confidenceLowerBound!)}원' : null;
+
+  String? get formattedConfidenceUpperBound =>
+      confidenceUpperBound != null ? '${formatNumber(confidenceUpperBound!)}원' : null;
+
+  String? get formattedSafeBidPrice =>
+      safeBidPrice != null ? '${formatNumber(safeBidPrice!)}원' : null;
+
+  String? get formattedAggressiveBidPrice =>
+      aggressiveBidPrice != null ? '${formatNumber(aggressiveBidPrice!)}원' : null;
+
+  String? get formattedRecommendedBidPrice =>
+      recommendedBidPrice != null ? '${formatNumber(recommendedBidPrice!)}원' : null;
+
+  static String formatNumber(int number) {
     if (number >= 100000000) {
       final eok = number ~/ 100000000;
       final man = (number % 100000000) ~/ 10000;
@@ -598,6 +945,70 @@ class FullAnalysisResult {
   final bool modelUsed;
   final AdvancedAnalysis advancedAnalysis;
 
+  // 10가지 고급 기능 필드
+  // 1. 입찰 전략 정보
+  final int? confidenceLowerBound;
+  final int? confidenceUpperBound;
+  final int? safeBidPrice;
+  final int? aggressiveBidPrice;
+  final int? recommendedBidPrice;
+  final int? safeBidProbability;
+  final int? aggressiveBidProbability;
+
+  // 2. 예측 신뢰도 정보
+  final int? confidenceScore;
+  final int? confidenceStars;
+  final int? similarCasesCount;
+  final int? regionalDataCount;
+  final List<String>? confidenceReasons;
+  final List<String>? confidenceWarnings;
+
+  // 3. 경쟁 분석 정보
+  final String? competitionLevel;
+  final int? viewCount;
+  final int? avgBidderCount;
+  final double? avgSuccessRate;
+  final String? recentCasesSummary;
+
+  // 4. 리스크 분석 정보
+  final int? riskScore;
+  final String? riskLevel;
+  final List<String>? riskFactors;
+  final List<String>? safetyFactors;
+  final String? legalAdvice;
+
+  // 5. 회차별 가격 추이 정보
+  final List<RoundHistory>? roundHistory;
+  final String? priceTrend;
+  final int? nextRoundPredictedPrice;
+  final double? trendChangeRate;
+
+  // 6. 유사 물건 비교 정보
+  final List<SimilarProperty>? similarProperties;
+  final int? avgSimilarPrice;
+  final int? minSimilarPrice;
+  final int? maxSimilarPrice;
+  final String? comparisonSummary;
+
+  // 7. 입찰 시뮬레이터 정보
+  final List<BidSimulation>? bidSimulations;
+  final String? simulatorGuidance;
+
+  // 8. D-day 알림 + 체크리스트 정보
+  final int? daysUntilAuction;
+  final String? auctionDateTime;
+  final List<String>? preparationChecklist;
+  final String? urgencyMessage;
+
+  // 9. AI 학습 피드백 정보
+  final String? feedbackPrompt;
+  final bool? feedbackEnabled;
+
+  // 10. 전문가 의견 정보
+  final List<String>? expertTips;
+  final String? communityInsight;
+  final int? similarCaseDiscussions;
+
   FullAnalysisResult({
     required this.auctionInfo,
     required this.predictedPrice,
@@ -610,6 +1021,50 @@ class FullAnalysisResult {
     required this.realTransactionWarning,
     required this.modelUsed,
     required this.advancedAnalysis,
+    // 10가지 고급 기능 필드
+    this.confidenceLowerBound,
+    this.confidenceUpperBound,
+    this.safeBidPrice,
+    this.aggressiveBidPrice,
+    this.recommendedBidPrice,
+    this.safeBidProbability,
+    this.aggressiveBidProbability,
+    this.confidenceScore,
+    this.confidenceStars,
+    this.similarCasesCount,
+    this.regionalDataCount,
+    this.confidenceReasons,
+    this.confidenceWarnings,
+    this.competitionLevel,
+    this.viewCount,
+    this.avgBidderCount,
+    this.avgSuccessRate,
+    this.recentCasesSummary,
+    this.riskScore,
+    this.riskLevel,
+    this.riskFactors,
+    this.safetyFactors,
+    this.legalAdvice,
+    this.roundHistory,
+    this.priceTrend,
+    this.nextRoundPredictedPrice,
+    this.trendChangeRate,
+    this.similarProperties,
+    this.avgSimilarPrice,
+    this.minSimilarPrice,
+    this.maxSimilarPrice,
+    this.comparisonSummary,
+    this.bidSimulations,
+    this.simulatorGuidance,
+    this.daysUntilAuction,
+    this.auctionDateTime,
+    this.preparationChecklist,
+    this.urgencyMessage,
+    this.feedbackPrompt,
+    this.feedbackEnabled,
+    this.expertTips,
+    this.communityInsight,
+    this.similarCaseDiscussions,
   });
 
   factory FullAnalysisResult.fromJson(Map<String, dynamic> json) {
@@ -626,6 +1081,50 @@ class FullAnalysisResult {
       realTransactionWarning: data['real_transaction_warning'] ?? '',
       modelUsed: data['model_used'] ?? false,
       advancedAnalysis: AdvancedAnalysis.fromJson(data['advanced_analysis'] ?? {}),
+      // 10가지 고급 기능 필드 파싱
+      confidenceLowerBound: data['confidence_lower_bound'],
+      confidenceUpperBound: data['confidence_upper_bound'],
+      safeBidPrice: data['safe_bid_price'],
+      aggressiveBidPrice: data['aggressive_bid_price'],
+      recommendedBidPrice: data['recommended_bid_price'],
+      safeBidProbability: data['safe_bid_probability'],
+      aggressiveBidProbability: data['aggressive_bid_probability'],
+      confidenceScore: data['confidence_score'],
+      confidenceStars: data['confidence_stars'],
+      similarCasesCount: data['similar_cases_count'],
+      regionalDataCount: data['regional_data_count'],
+      confidenceReasons: (data['confidence_reasons'] as List?)?.map((e) => e.toString()).toList(),
+      confidenceWarnings: (data['confidence_warnings'] as List?)?.map((e) => e.toString()).toList(),
+      competitionLevel: data['competition_level'],
+      viewCount: data['view_count'],
+      avgBidderCount: data['avg_bidder_count'],
+      avgSuccessRate: (data['avg_success_rate'])?.toDouble(),
+      recentCasesSummary: data['recent_cases_summary'],
+      riskScore: data['risk_score'],
+      riskLevel: data['risk_level'],
+      riskFactors: (data['risk_factors'] as List?)?.map((e) => e.toString()).toList(),
+      safetyFactors: (data['safety_factors'] as List?)?.map((e) => e.toString()).toList(),
+      legalAdvice: data['legal_advice'],
+      roundHistory: (data['round_history'] as List?)?.map((e) => RoundHistory.fromJson(e as Map<String, dynamic>)).toList(),
+      priceTrend: data['price_trend'],
+      nextRoundPredictedPrice: data['next_round_predicted_price'],
+      trendChangeRate: (data['trend_change_rate'])?.toDouble(),
+      similarProperties: (data['similar_properties'] as List?)?.map((e) => SimilarProperty.fromJson(e as Map<String, dynamic>)).toList(),
+      avgSimilarPrice: data['avg_similar_price'],
+      minSimilarPrice: data['min_similar_price'],
+      maxSimilarPrice: data['max_similar_price'],
+      comparisonSummary: data['comparison_summary'],
+      bidSimulations: (data['bid_simulations'] as List?)?.map((e) => BidSimulation.fromJson(e as Map<String, dynamic>)).toList(),
+      simulatorGuidance: data['simulator_guidance'],
+      daysUntilAuction: data['days_until_auction'],
+      auctionDateTime: data['auction_date_time'],
+      preparationChecklist: (data['preparation_checklist'] as List?)?.map((e) => e.toString()).toList(),
+      urgencyMessage: data['urgency_message'],
+      feedbackPrompt: data['feedback_prompt'],
+      feedbackEnabled: data['feedback_enabled'],
+      expertTips: (data['expert_tips'] as List?)?.map((e) => e.toString()).toList(),
+      communityInsight: data['community_insight'],
+      similarCaseDiscussions: data['similar_case_discussions'],
     );
   }
 

@@ -5,6 +5,8 @@ import 'dart:convert';
 import '../services/api_service.dart';
 import '../models/models.dart';
 import '../providers/selected_auction_provider.dart';
+import '../providers/auth_provider.dart';
+import 'auction_search_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -19,6 +21,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
   final _caseNumberController = TextEditingController();
+  final _searchQueryController = TextEditingController();
 
   FullAnalysisResult? _result;
   bool _isLoading = false;
@@ -70,6 +73,7 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _caseNumberController.dispose();
+    _searchQueryController.dispose();
     super.dispose();
   }
 
@@ -191,8 +195,12 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
 
   Future<void> _saveSearchHistory(String caseNumber, FullAnalysisResult result) async {
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id ?? 0;
+      if (userId == 0) return; // 로그인하지 않은 경우 저장하지 않음
+
       final prefs = await SharedPreferences.getInstance();
-      final historyJson = prefs.getStringList('search_history') ?? [];
+      final historyJson = prefs.getStringList('search_history_$userId') ?? [];
 
       // 검색 기록 항목 생성
       final historyItem = {
@@ -220,7 +228,7 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
         historyJson.removeAt(0);
       }
 
-      await prefs.setStringList('search_history', historyJson);
+      await prefs.setStringList('search_history_$userId', historyJson);
     } catch (e) {
       // 검색 기록 저장 실패는 무시 (사용자에게 표시하지 않음)
       print('Failed to save search history: $e');
@@ -229,8 +237,15 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
 
   Future<void> _checkFavoriteStatus(String caseNumber) async {
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id ?? 0;
+      if (userId == 0) {
+        setState(() => _isFavorite = false);
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      final favoritesJson = prefs.getStringList('favorites') ?? [];
+      final favoritesJson = prefs.getStringList('favorites_$userId') ?? [];
 
       final isFavorite = favoritesJson.any((item) {
         try {
@@ -309,7 +324,7 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
       }
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -361,61 +376,71 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context),
               child: const Text('취소'),
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: isCurrentlySubscribed
-                  ? ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    )
-                  : null,
-              child: Text(isCurrentlySubscribed ? '해제' : '구독'),
-            ),
+            if (isCurrentlySubscribed) ...[
+              // 이미 구독 중인 경우: "저장"과 "해제" 버튼 둘 다 표시
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'save'),
+                child: const Text('저장'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'unsubscribe'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('해제'),
+              ),
+            ] else ...[
+              // 신규 구독: "구독" 버튼만 표시
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'subscribe'),
+                child: const Text('구독'),
+              ),
+            ],
           ],
         ),
       ),
     );
 
-    if (confirmed == true) {
-      if (isCurrentlySubscribed) {
-        // 구독 해제
-        if (currentSubscription != null) {
-          final subscriptionId = currentSubscription['id'] as int;
-          try {
-            final unsubscribeResponse = await _apiService.unsubscribe(subscriptionId);
+    if (confirmed == 'unsubscribe') {
+      // 구독 해제
+      if (currentSubscription != null) {
+        final subscriptionId = currentSubscription['id'] as int;
+        try {
+          final unsubscribeResponse = await _apiService.unsubscribe(subscriptionId);
 
-            if (unsubscribeResponse['success'] == true) {
-              // Provider에 상태 저장 (즉시 반영)
-              provider.setSubscriptionState(_result!.caseNumber, false);
+          if (unsubscribeResponse['success'] == true) {
+            // Provider에 상태 저장 (즉시 반영)
+            provider.setSubscriptionState(_result!.caseNumber, false);
 
-              setState(() {
-                _isSubscribed = false;
-              });
+            setState(() {
+              _isSubscribed = false;
+            });
 
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('구독이 해제되었습니다')),
-                );
-              }
-            }
-          } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('구독 해제 실패: ${e.toString()}')),
+                const SnackBar(content: Text('구독이 해제되었습니다')),
               );
             }
           }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('구독 해제 실패: ${e.toString()}')),
+            );
+          }
         }
-      } else {
-        // 구독 추가
-        await _subscribeAuction(
-          priceDropAlert: priceDropAlert,
-          bidReminderAlert: bidReminderAlert,
-        );
       }
+    } else if (confirmed == 'save' || confirmed == 'subscribe') {
+      // 구독 추가 또는 설정 업데이트
+      await _subscribeAuction(
+        priceDropAlert: priceDropAlert,
+        bidReminderAlert: bidReminderAlert,
+      );
     }
   }
 
@@ -448,9 +473,15 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
         });
 
         if (mounted) {
+          // 서버의 action 값에 따라 다른 메시지 표시
+          final action = response['action'] as String?;
+          final message = action == 'updated'
+              ? '알림 설정이 저장되었습니다'
+              : '알림 구독이 완료되었습니다';
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('알림 구독이 완료되었습니다'),
+            SnackBar(
+              content: Text(message),
               backgroundColor: Colors.green,
             ),
           );
@@ -525,12 +556,47 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
     }
   }
 
+  Future<void> _showAuctionSearchDialog() async {
+    // 새로운 경매 검색 화면으로 이동
+    final String? selectedCaseNo = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AuctionSearchScreen(),
+      ),
+    );
+
+    // 사용자가 경매 물건을 선택한 경우
+    if (selectedCaseNo != null && mounted) {
+      // Parse case number: "2024타경579705" -> year: "2024", number: "579705"
+      final yearMatch = RegExp(r'^(\d{4})').firstMatch(selectedCaseNo);
+      final numberMatch = RegExp(r'타경(\d+)$').firstMatch(selectedCaseNo);
+
+      if (yearMatch != null && numberMatch != null) {
+        setState(() {
+          _selectedYear = yearMatch.group(1)!;
+          _caseNumberController.text = numberMatch.group(1)!;
+        });
+      }
+    }
+  }
+
   Future<void> _toggleFavorite() async {
     if (_result == null) return;
 
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id ?? 0;
+      if (userId == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('로그인이 필요합니다')),
+          );
+        }
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      final favoritesJson = prefs.getStringList('favorites') ?? [];
+      final favoritesJson = prefs.getStringList('favorites_$userId') ?? [];
 
       if (_isFavorite) {
         // 즐겨찾기 삭제
@@ -543,7 +609,7 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
           }
         });
 
-        await prefs.setStringList('favorites', favoritesJson);
+        await prefs.setStringList('favorites_$userId', favoritesJson);
 
         setState(() {
           _isFavorite = false;
@@ -572,7 +638,7 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
           favoritesJson.removeAt(0);
         }
 
-        await prefs.setStringList('favorites', favoritesJson);
+        await prefs.setStringList('favorites_$userId', favoritesJson);
 
         setState(() {
           _isFavorite = true;
@@ -708,6 +774,33 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
             ),
             child: Column(
               children: [
+                // 경매 물건 찾기 버튼 (새로 추가)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _showAuctionSearchDialog,
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text(
+                      '경매 물건 찾기',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(
+                        color: Colors.blue[700]!,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // 사건번호 입력
                 Row(
                   children: [
@@ -838,7 +931,31 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
 
   Widget _buildAnalysisResult() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 24),
+            Text(
+              'AI가 경매 데이터를 분석하고 있습니다...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '잠시만 기다려주세요',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     if (_error != null) {
@@ -910,6 +1027,47 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
           // 입찰 전략
           _buildBiddingStrategyCard(),
           const SizedBox(height: 16),
+
+          // 10가지 고급 기능 카드들
+          if (_result!.confidenceScore != null) ...[
+            _buildConfidenceCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.competitionLevel != null) ...[
+            _buildCompetitionCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.riskScore != null) ...[
+            _buildRiskAnalysisCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.roundHistory != null && _result!.roundHistory!.isNotEmpty) ...[
+            _buildRoundHistoryCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.similarProperties != null && _result!.similarProperties!.isNotEmpty) ...[
+            _buildSimilarPropertiesCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.bidSimulations != null && _result!.bidSimulations!.isNotEmpty) ...[
+            _buildBidSimulatorCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.daysUntilAuction != null) ...[
+            _buildDdayCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (_result!.expertTips != null && _result!.expertTips!.isNotEmpty) ...[
+            _buildExpertTipsCard(),
+            const SizedBox(height: 16),
+          ],
 
           // 권리분석
           if (_result!.auctionInfo['권리분석'] != null)
@@ -2053,5 +2211,455 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
     } catch (e) {
       return amountStr; // 파싱 실패 시 원본 반환
     }
+  }
+
+  // ============================================
+  // 10가지 고급 기능 카드 빌더 메서드들
+  // ============================================
+
+  // 2. 예측 신뢰도 카드
+  Widget _buildConfidenceCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.verified, color: Colors.green[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('예측 신뢰도', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text('신뢰도: ${result.confidenceScore ?? 0}점',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                ...List.generate(
+                  result.confidenceStars ?? 0,
+                  (index) => const Icon(Icons.star, color: Colors.amber, size: 20),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (result.similarCasesCount != null)
+              Text('유사 사례: ${result.similarCasesCount}건'),
+            if (result.regionalDataCount != null)
+              Text('지역 데이터: ${result.regionalDataCount}건'),
+            if (result.confidenceReasons != null && result.confidenceReasons!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('신뢰 근거:', style: TextStyle(fontWeight: FontWeight.bold)),
+              ...result.confidenceReasons!.map((r) => Text('• $r')),
+            ],
+            if (result.confidenceWarnings != null && result.confidenceWarnings!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('주의사항:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+              ...result.confidenceWarnings!.map((w) => Text('• $w', style: const TextStyle(color: Colors.orange))),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 3. 경쟁 분석 카드
+  Widget _buildCompetitionCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.people, color: Colors.purple[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('경쟁 분석', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (result.competitionLevel != null)
+              Text('경쟁 강도: ${result.competitionLevel}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (result.viewCount != null) Text('조회수: ${result.viewCount}회'),
+            if (result.avgBidderCount != null) Text('평균 입찰자: ${result.avgBidderCount}명'),
+            if (result.avgSuccessRate != null)
+              Text('평균 낙찰률: ${result.avgSuccessRate!.toStringAsFixed(1)}%'),
+            if (result.recentCasesSummary != null) ...[
+              const SizedBox(height: 8),
+              Text(result.recentCasesSummary!),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 4. 리스크 분석 카드
+  Widget _buildRiskAnalysisCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.warning, color: Colors.red[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('리스크 분석', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (result.riskLevel != null)
+              Text('리스크 수준: ${result.riskLevel}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            if (result.riskScore != null) Text('리스크 점수: ${result.riskScore}/10'),
+            if (result.riskFactors != null && result.riskFactors!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('위험 요소:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+              ...result.riskFactors!.map((r) => Text('• $r', style: const TextStyle(color: Colors.red))),
+            ],
+            if (result.safetyFactors != null && result.safetyFactors!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('안전 요소:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              ...result.safetyFactors!.map((s) => Text('• $s', style: const TextStyle(color: Colors.green))),
+            ],
+            if (result.legalAdvice != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.yellow[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(result.legalAdvice!, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 5. 회차별 가격 추이 카드
+  Widget _buildRoundHistoryCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.trending_down, color: Colors.teal[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('회차별 가격 추이', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (result.priceTrend != null) Text('추세: ${result.priceTrend}'),
+            const SizedBox(height: 8),
+            ...result.roundHistory!.map((h) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('${h.round}회차'),
+                      Text(h.formattedPrice),
+                      Text(
+                        '${h.changeRate.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          color: h.changeRate < 0 ? Colors.blue : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+            if (result.nextRoundPredictedPrice != null) ...[
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('다음 회차 예상', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(PredictionResult.formatNumber(result.nextRoundPredictedPrice!)),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 6. 유사 물건 비교 카드
+  Widget _buildSimilarPropertiesCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.compare_arrows, color: Colors.indigo[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('유사 물건 비교', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (result.comparisonSummary != null) Text(result.comparisonSummary!),
+            const SizedBox(height: 8),
+            ...result.similarProperties!.take(3).map((p) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.address, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('낙찰가: ${p.formattedWinningBid}'),
+                          Text('유사도: ${p.similarityScore}%'),
+                        ],
+                      ),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 7. 입찰 시뮬레이터 카드
+  Widget _buildBidSimulatorCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.cyan[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.calculate, color: Colors.cyan[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('입찰 시뮬레이터', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (result.simulatorGuidance != null) Text(result.simulatorGuidance!),
+            const SizedBox(height: 8),
+            ...result.bidSimulations!.map((sim) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(sim.formattedBidAmount, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('낙찰확률: ${sim.winProbability}%',
+                              style: TextStyle(
+                                color: sim.winProbability >= 70
+                                    ? Colors.green
+                                    : sim.winProbability >= 40
+                                        ? Colors.orange
+                                        : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              )),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(sim.recommendation, style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 8. D-day 알림 카드
+  Widget _buildDdayCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.event, color: Colors.orange[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('경매일 D-day', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (result.auctionDateTime != null) Text('경매일시: ${result.auctionDateTime}'),
+            if (result.daysUntilAuction != null)
+              Text('D-${result.daysUntilAuction}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red)),
+            if (result.urgencyMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(result.urgencyMessage!, style: const TextStyle(color: Colors.orange)),
+            ],
+            if (result.preparationChecklist != null && result.preparationChecklist!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('준비사항 체크리스트:', style: TextStyle(fontWeight: FontWeight.bold)),
+              ...result.preparationChecklist!.map((item) => Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_box_outline_blank, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(item)),
+                      ],
+                    ),
+                  )),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 10. 전문가 팁 카드
+  Widget _buildExpertTipsCard() {
+    final result = _result!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.tips_and_updates, color: Colors.amber[700]),
+                ),
+                const SizedBox(width: 12),
+                const Text('전문가 팁', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...result.expertTips!.map((tip) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.lightbulb, size: 18, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(tip)),
+                    ],
+                  ),
+                )),
+            if (result.communityInsight != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(result.communityInsight!),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

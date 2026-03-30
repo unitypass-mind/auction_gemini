@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import 'subscriptions_screen.dart';
 import 'search_history_screen.dart';
 import 'favorites_screen.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -120,6 +121,21 @@ class ProfileScreen extends StatelessWidget {
             Card(
               child: Column(
                 children: [
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.lock_reset,
+                    title: '비밀번호 변경',
+                    subtitle: '보안을 위해 주기적으로 변경하세요',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ChangePasswordScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
                   _buildMenuItem(
                     context,
                     icon: Icons.notifications,

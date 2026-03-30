@@ -8,6 +8,10 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from passlib.context import CryptContext
 import logging
+import smtplib
+import uuid
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +189,125 @@ def validate_password(password: str) -> tuple[bool, str]:
         return False, "비밀번호는 영문과 숫자를 포함해야 합니다"
 
     return True, ""
+
+
+def generate_reset_token() -> str:
+    """
+    비밀번호 재설정 토큰 생성 (6자리 숫자 OTP)
+
+    Returns:
+        6자리 숫자 토큰 문자열
+    """
+    import random
+    return str(random.randint(100000, 999999))
+
+
+def send_password_reset_email(
+    to_email: str,
+    reset_token: str,
+    smtp_host: str,
+    smtp_port: int,
+    smtp_username: str,
+    smtp_password: str,
+    smtp_from_email: str,
+    smtp_from_name: str = "경매 AI"
+) -> bool:
+    """
+    비밀번호 재설정 이메일 발송
+
+    Args:
+        to_email: 수신자 이메일
+        reset_token: 재설정 토큰
+        smtp_host: SMTP 서버 주소
+        smtp_port: SMTP 서버 포트
+        smtp_username: SMTP 사용자명
+        smtp_password: SMTP 비밀번호
+        smtp_from_email: 발신자 이메일
+        smtp_from_name: 발신자 이름
+
+    Returns:
+        발송 성공 여부
+    """
+    try:
+        # 이메일 내용 작성
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "[경매 AI] 비밀번호 재설정 안내"
+        message["From"] = f"{smtp_from_name} <{smtp_from_email}>"
+        message["To"] = to_email
+
+        # HTML 본문
+        html_body = f"""
+        <html>
+          <head></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+              <h2 style="color: #2196F3; text-align: center;">비밀번호 재설정</h2>
+
+              <p>안녕하세요,</p>
+
+              <p>비밀번호 재설정을 요청하셨습니다. 아래 인증번호를 앱에 입력하여 비밀번호를 재설정하실 수 있습니다.</p>
+
+              <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; text-align: center; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #666;">인증번호</p>
+                <p style="margin: 10px 0 0 0; font-size: 32px; font-weight: bold; color: #2196F3; letter-spacing: 4px;">
+                  {reset_token}
+                </p>
+              </div>
+
+              <p><strong>주의사항:</strong></p>
+              <ul>
+                <li>이 인증번호는 1시간 동안만 유효합니다.</li>
+                <li>인증번호는 한 번만 사용할 수 있습니다.</li>
+                <li>비밀번호 재설정을 요청하지 않으셨다면 이 이메일을 무시하세요.</li>
+              </ul>
+
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+
+              <p style="font-size: 12px; color: #999; text-align: center;">
+                본 메일은 발신 전용입니다. 문의사항은 앱 내 고객센터를 이용해주세요.
+              </p>
+            </div>
+          </body>
+        </html>
+        """
+
+        # 일반 텍스트 본문 (HTML을 지원하지 않는 이메일 클라이언트용)
+        text_body = f"""
+        [경매 AI] 비밀번호 재설정
+
+        안녕하세요,
+
+        비밀번호 재설정을 요청하셨습니다.
+        아래 인증번호를 앱에 입력하여 비밀번호를 재설정하실 수 있습니다.
+
+        인증번호: {reset_token}
+
+        주의사항:
+        - 이 인증번호는 1시간 동안만 유효합니다.
+        - 인증번호는 한 번만 사용할 수 있습니다.
+        - 비밀번호 재설정을 요청하지 않으셨다면 이 이메일을 무시하세요.
+
+        본 메일은 발신 전용입니다.
+        """
+
+        # 이메일에 본문 추가
+        part1 = MIMEText(text_body, "plain")
+        part2 = MIMEText(html_body, "html")
+        message.attach(part1)
+        message.attach(part2)
+
+        # SMTP 서버 연결 및 이메일 발송
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()  # TLS 암호화
+            server.login(smtp_username, smtp_password)
+            server.sendmail(smtp_from_email, to_email, message.as_string())
+
+        logger.info(f"비밀번호 재설정 이메일 발송 성공: {to_email}")
+        return True
+
+    except Exception as e:
+        logger.error(f"비밀번호 재설정 이메일 발송 실패: {e}", exc_info=True)
+        return False
 
 
 if __name__ == "__main__":

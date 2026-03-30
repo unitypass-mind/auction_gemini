@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../providers/selected_auction_provider.dart';
+import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 
 class SearchHistoryScreen extends StatefulWidget {
@@ -26,8 +27,19 @@ class _SearchHistoryScreenState extends State<SearchHistoryScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id ?? 0;
+
+      if (userId == 0) {
+        setState(() {
+          _history = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      final historyJson = prefs.getStringList('search_history') ?? [];
+      final historyJson = prefs.getStringList('search_history_$userId') ?? [];
 
       setState(() {
         _history = historyJson
@@ -64,14 +76,19 @@ class _SearchHistoryScreenState extends State<SearchHistoryScreen> {
 
     if (confirm == true) {
       try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final userId = authProvider.user?.id ?? 0;
+
+        if (userId == 0) return;
+
         final prefs = await SharedPreferences.getInstance();
-        final historyJson = prefs.getStringList('search_history') ?? [];
+        final historyJson = prefs.getStringList('search_history_$userId') ?? [];
 
         // reversed 했으므로 실제 인덱스는 반대
         final actualIndex = historyJson.length - 1 - index;
         historyJson.removeAt(actualIndex);
 
-        await prefs.setStringList('search_history', historyJson);
+        await prefs.setStringList('search_history_$userId', historyJson);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -111,8 +128,13 @@ class _SearchHistoryScreenState extends State<SearchHistoryScreen> {
 
     if (confirm == true) {
       try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final userId = authProvider.user?.id ?? 0;
+
+        if (userId == 0) return;
+
         final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('search_history');
+        await prefs.remove('search_history_$userId');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
