@@ -458,144 +458,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
               ),
             ],
 
-            // AI 예측 신뢰도
-            if (result.confidenceScore != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.verified, color: Colors.blue[700], size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'AI 예측 신뢰도',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        // 별점 표시
-                        if (result.confidenceStars != null) ...[
-                          Row(
-                            children: List.generate(5, (index) {
-                              return Icon(
-                                index < result.confidenceStars!
-                                    ? Icons.star
-                                    : Icons.star_border,
-                                color: Colors.amber[700],
-                                size: 18,
-                              );
-                            }),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${result.confidenceScore}%',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[900],
-                      ),
-                    ),
-
-                    // 신뢰도 높은 이유
-                    if (result.confidenceReasons != null && result.confidenceReasons!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        '높은 신뢰도 이유:',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      ...result.confidenceReasons!.map((reason) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.check, color: Colors.green[700], size: 16),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                reason,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                    ],
-
-                    // 주의사항
-                    if (result.confidenceWarnings != null && result.confidenceWarnings!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.warning_amber, color: Colors.orange[700], size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '주의사항:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.orange[900],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            ...result.confidenceWarnings!.map((warning) => Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('• ', style: TextStyle(color: Colors.orange[800])),
-                                  Expanded(
-                                    child: Text(
-                                      warning,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.orange[800],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-
             // 경고 메시지
             if (result.warning != null) ...[
               const SizedBox(height: 16),
@@ -2494,6 +2356,144 @@ class _PredictionScreenState extends State<PredictionScreen> {
                               const SizedBox(height: 8),
                               Text('유사 사례 토론 ${result.similarCaseDiscussions}건', style: TextStyle(fontSize: 12, color: Colors.deepPurple.shade700)),
                             ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+
+            // AI 예측 신뢰도
+            if (result.confidenceScore != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.verified, color: Colors.blue[700], size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'AI 예측 신뢰도',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        // 별점 표시
+                        if (result.confidenceStars != null) ...[
+                          Row(
+                            children: List.generate(5, (index) {
+                              return Icon(
+                                index < result.confidenceStars!
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: Colors.amber[700],
+                                size: 18,
+                              );
+                            }),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${result.confidenceScore}%',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[900],
+                      ),
+                    ),
+
+                    // 신뢰도 높은 이유
+                    if (result.confidenceReasons != null && result.confidenceReasons!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        '높은 신뢰도 이유:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ...result.confidenceReasons!.map((reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.check, color: Colors.green[700], size: 16),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                    ],
+
+                    // 주의사항
+                    if (result.confidenceWarnings != null && result.confidenceWarnings!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.warning_amber, color: Colors.orange[700], size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '주의사항:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange[900],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ...result.confidenceWarnings!.map((warning) => Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('• ', style: TextStyle(color: Colors.orange[800])),
+                                  Expanded(
+                                    child: Text(
+                                      warning,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.orange[800],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )),
                           ],
                         ),
                       ),
