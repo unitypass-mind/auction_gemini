@@ -408,85 +408,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 수익 정보
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoItem(
-                    '예상 수익',
-                    result.formattedExpectedProfit,
-                    Icons.trending_up,
-                    Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildInfoItem(
-                    '수익률',
-                    result.formattedProfitRate,
-                    Icons.percent,
-                    Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-
-            // 모델 사용 여부
-            if (result.modelUsed) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green[700], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        result.predictionMode ?? 'AI 모델 사용',
-                        style: TextStyle(
-                          color: Colors.green[900],
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // 경고 메시지
-            if (result.warning != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange[300]!),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.warning_amber, color: Colors.orange[700], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        result.warning!,
-                        style: TextStyle(
-                          color: Colors.orange[900],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
             // 입찰 전략 가이드
             if (result.safeBidPrice != null) ...[
               const SizedBox(height: 24),
@@ -731,6 +652,85 @@ class _PredictionScreenState extends State<PredictionScreen> {
                 ),
               ),
             ],
+
+            // 모델 사용 여부
+            if (result.modelUsed) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        result.predictionMode ?? 'AI 모델 사용',
+                        style: TextStyle(
+                          color: Colors.green[900],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // 경고 메시지
+            if (result.warning != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[300]!),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber, color: Colors.orange[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        result.warning!,
+                        style: TextStyle(
+                          color: Colors.orange[900],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // 수익 정보
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoItem(
+                    '예상 수익',
+                    result.formattedExpectedProfit,
+                    Icons.trending_up,
+                    Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildInfoItem(
+                    '수익률',
+                    result.formattedProfitRate,
+                    Icons.percent,
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            ),
 
             // 경쟁 분석
             if (result.competitionLevel != null) ...[
