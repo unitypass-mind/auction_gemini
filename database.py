@@ -799,7 +799,7 @@ class PredictionDB:
 
             query = """
                 SELECT
-                    지역, 물건종류, 면적, actual_price, created_at,
+                    case_no, 지역, 물건종류, 면적, actual_price, created_at,
                     ABS(면적 - ?) as area_diff
                 FROM predictions
                 WHERE actual_price > 0
@@ -815,7 +815,7 @@ class PredictionDB:
                 query += " AND 지역 LIKE ?"
                 params.append(f"%{region}%")
 
-            query += " ORDER BY area_diff ASC LIMIT ?"
+            query += " GROUP BY case_no ORDER BY area_diff ASC LIMIT ?"
             params.append(limit)
 
             cursor.execute(query, params)
