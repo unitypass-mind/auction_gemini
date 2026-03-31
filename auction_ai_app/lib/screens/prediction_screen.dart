@@ -963,6 +963,338 @@ class _PredictionScreenState extends State<PredictionScreen> {
               ),
             ],
 
+            // 실시간 유사 물건 비교
+            if (result.similarProperties != null &&
+                result.similarProperties!.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.teal.shade50,
+                      Colors.cyan.shade50,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.teal.shade300,
+                    width: 2,
+                  ),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.compare_arrows,
+                          color: Colors.teal.shade700,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '실시간 유사 물건 비교',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 가격 통계
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          if (result.avgSimilarPrice != null)
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.show_chart,
+                                    color: Colors.teal.shade600,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '평균',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    PredictionResult.formatNumber(
+                                        result.avgSimilarPrice!),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.teal.shade900,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (result.minSimilarPrice != null)
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_downward,
+                                    color: Colors.blue.shade600,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '최저',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    PredictionResult.formatNumber(
+                                        result.minSimilarPrice!),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade900,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (result.maxSimilarPrice != null)
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_upward,
+                                    color: Colors.red.shade600,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '최고',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    PredictionResult.formatNumber(
+                                        result.maxSimilarPrice!),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red.shade900,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // 비교 요약
+                    if (result.comparisonSummary != null &&
+                        result.comparisonSummary!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.teal.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 20,
+                              color: Colors.teal.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                result.comparisonSummary!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.teal.shade900,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // 유사 물건 목록
+                    const SizedBox(height: 16),
+                    ...result.similarProperties!
+                        .take(5)
+                        .map((property) => Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          property.address,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: property.similarityScore >= 80
+                                              ? Colors.green.shade100
+                                              : property.similarityScore >= 60
+                                                  ? Colors.orange.shade100
+                                                  : Colors.grey.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          '${property.similarityScore}%',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: property.similarityScore >= 80
+                                                ? Colors.green.shade900
+                                                : property.similarityScore >= 60
+                                                    ? Colors.orange.shade900
+                                                    : Colors.grey.shade900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      if (property.propertyType != null) ...[
+                                        Icon(
+                                          Icons.home,
+                                          size: 14,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          property.propertyType!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                      ],
+                                      if (property.area != null) ...[
+                                        Icon(
+                                          Icons.square_foot,
+                                          size: 14,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${property.area!.toStringAsFixed(1)}㎡',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '낙찰가',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      Text(
+                                        property.formattedWinningBid,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal.shade900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (property.auctionDate != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '경매일: ${property.auctionDate}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            )),
+                    if (result.similarProperties!.length > 5)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Center(
+                          child: Text(
+                            '외 ${result.similarProperties!.length - 5}건 더 있음',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+
             // 리스크 분석
             if (result.riskScore != null) ...[
               const SizedBox(height: 20),
@@ -1307,598 +1639,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
               ),
             ],
 
-            // 회차별 가격 추이
-            if (result.roundHistory != null &&
-                result.roundHistory!.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.purple.shade50,
-                      Colors.indigo.shade50,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.purple.shade300,
-                    width: 2,
-                  ),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.trending_up,
-                          color: Colors.purple.shade700,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          '회차별 가격 추이',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (result.priceTrend != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: result.priceTrend == '상승'
-                                  ? Colors.red.shade100
-                                  : result.priceTrend == '하락'
-                                      ? Colors.blue.shade100
-                                      : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  result.priceTrend == '상승'
-                                      ? Icons.arrow_upward
-                                      : result.priceTrend == '하락'
-                                          ? Icons.arrow_downward
-                                          : Icons.remove,
-                                  size: 16,
-                                  color: result.priceTrend == '상승'
-                                      ? Colors.red.shade700
-                                      : result.priceTrend == '하락'
-                                          ? Colors.blue.shade700
-                                          : Colors.grey.shade700,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  result.priceTrend!,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: result.priceTrend == '상승'
-                                        ? Colors.red.shade900
-                                        : result.priceTrend == '하락'
-                                            ? Colors.blue.shade900
-                                            : Colors.grey.shade900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 회차 리스트
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Column(
-                        children: [
-                          ...result.roundHistory!.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final round = entry.value;
-                            final isLast =
-                                index == result.roundHistory!.length - 1;
-
-                            return Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    // 회차 번호
-                                    Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: BoxDecoration(
-                                        color: Colors.purple.shade100,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '${round.round}회',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.purple.shade900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-
-                                    // 가격 정보
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            round.formattedPrice,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          if (round.changeRate != 0)
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  round.changeRate > 0
-                                                      ? Icons.arrow_drop_up
-                                                      : Icons.arrow_drop_down,
-                                                  size: 20,
-                                                  color: round.changeRate > 0
-                                                      ? Colors.red
-                                                      : Colors.blue,
-                                                ),
-                                                Text(
-                                                  '${round.changeRate > 0 ? '+' : ''}${round.changeRate.toStringAsFixed(1)}%',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: round.changeRate > 0
-                                                        ? Colors.red.shade700
-                                                        : Colors.blue.shade700,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (!isLast)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 25),
-                                        Container(
-                                          width: 2,
-                                          height: 20,
-                                          color: Colors.purple.shade200,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-
-                    // 다음 회차 예상가
-                    if (result.nextRoundPredictedPrice != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.purple.shade100,
-                              Colors.indigo.shade100,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.purple.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.lightbulb_outline,
-                              color: Colors.purple.shade700,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '다음 회차 예상가',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${PredictionResult.formatNumber(result.nextRoundPredictedPrice!)}원',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.purple.shade900,
-                                    ),
-                                  ),
-                                  if (result.trendChangeRate != null)
-                                    Text(
-                                      '추세 기반 ${result.trendChangeRate! > 0 ? '+' : ''}${result.trendChangeRate!.toStringAsFixed(1)}%',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-
-            // 실시간 유사 물건 비교
-            if (result.similarProperties != null &&
-                result.similarProperties!.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.teal.shade50,
-                      Colors.cyan.shade50,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.teal.shade300,
-                    width: 2,
-                  ),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.compare_arrows,
-                          color: Colors.teal.shade700,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          '실시간 유사 물건 비교',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 가격 통계
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          if (result.avgSimilarPrice != null)
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.show_chart,
-                                    color: Colors.teal.shade600,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '평균',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    PredictionResult.formatNumber(
-                                        result.avgSimilarPrice!),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.teal.shade900,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (result.minSimilarPrice != null)
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.arrow_downward,
-                                    color: Colors.blue.shade600,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '최저',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    PredictionResult.formatNumber(
-                                        result.minSimilarPrice!),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade900,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (result.maxSimilarPrice != null)
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.arrow_upward,
-                                    color: Colors.red.shade600,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '최고',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    PredictionResult.formatNumber(
-                                        result.maxSimilarPrice!),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red.shade900,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                    // 비교 요약
-                    if (result.comparisonSummary != null &&
-                        result.comparisonSummary!.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.teal.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 20,
-                              color: Colors.teal.shade700,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                result.comparisonSummary!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.teal.shade900,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    // 유사 물건 목록
-                    const SizedBox(height: 16),
-                    ...result.similarProperties!
-                        .take(5)
-                        .map((property) => Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border:
-                                    Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          property.address,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: property.similarityScore >= 80
-                                              ? Colors.green.shade100
-                                              : property.similarityScore >= 60
-                                                  ? Colors.orange.shade100
-                                                  : Colors.grey.shade100,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '${property.similarityScore}%',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: property.similarityScore >= 80
-                                                ? Colors.green.shade900
-                                                : property.similarityScore >= 60
-                                                    ? Colors.orange.shade900
-                                                    : Colors.grey.shade900,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      if (property.propertyType != null) ...[
-                                        Icon(
-                                          Icons.home,
-                                          size: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          property.propertyType!,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                      ],
-                                      if (property.area != null) ...[
-                                        Icon(
-                                          Icons.square_foot,
-                                          size: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${property.area!.toStringAsFixed(1)}㎡',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '낙찰가',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      Text(
-                                        property.formattedWinningBid,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.teal.shade900,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (property.auctionDate != null) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '경매일: ${property.auctionDate}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            )),
-                    if (result.similarProperties!.length > 5)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Center(
-                          child: Text(
-                            '외 ${result.similarProperties!.length - 5}건 더 있음',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-
             // 입찰 시뮬레이터
             if (result.bidSimulations != null &&
                 result.bidSimulations!.isNotEmpty) ...[
@@ -2179,119 +1919,6 @@ class _PredictionScreenState extends State<PredictionScreen> {
                             ],
                           ),
                         )),
-                  ],
-                ),
-              ),
-            ],
-
-            // D-day 알림 + 체크리스트
-            if (result.daysUntilAuction != null) ...[
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.pink.shade50, Colors.red.shade50],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.pink.shade300, width: 2),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.alarm, color: Colors.red.shade700, size: 24),
-                        const SizedBox(width: 8),
-                        const Text('경매 D-day', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: result.daysUntilAuction! <= 7 ? Colors.red : result.daysUntilAuction! <= 14 ? Colors.orange : Colors.blue,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text('D-${result.daysUntilAuction}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    if (result.auctionDateTime != null) ...[
-                      const SizedBox(height: 8),
-                      Text('경매일시: ${result.auctionDateTime}', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-                    ],
-                    if (result.urgencyMessage != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(8)),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning_amber, color: Colors.red.shade700, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(result.urgencyMessage!, style: TextStyle(fontSize: 13, color: Colors.red.shade900))),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (result.preparationChecklist != null && result.preparationChecklist!.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      const Text('입찰 준비 체크리스트', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      ...result.preparationChecklist!.map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_box_outline_blank, size: 20, color: Colors.grey.shade600),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text(item, style: const TextStyle(fontSize: 14))),
-                          ],
-                        ),
-                      )),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-
-            // AI 학습 피드백
-            if (result.feedbackEnabled == true && result.feedbackPrompt != null) ...[
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [Colors.lightBlue.shade50, Colors.cyan.shade50]),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.lightBlue.shade300, width: 2),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.psychology, color: Colors.blue.shade700, size: 24),
-                        const SizedBox(width: 8),
-                        const Text('AI 학습에 도움을 주세요', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
-                      child: Text(result.feedbackPrompt!, style: TextStyle(fontSize: 13, color: Colors.blue.shade900, height: 1.4)),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('이 예측이 얼마나 도움이 되었나요?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildFeedbackButton('매우\n부정확', Icons.sentiment_very_dissatisfied, Colors.red),
-                        _buildFeedbackButton('부정확', Icons.sentiment_dissatisfied, Colors.orange),
-                        _buildFeedbackButton('보통', Icons.sentiment_neutral, Colors.amber),
-                        _buildFeedbackButton('정확', Icons.sentiment_satisfied, Colors.lightGreen),
-                        _buildFeedbackButton('매우\n정확', Icons.sentiment_very_satisfied, Colors.green),
-                      ],
-                    ),
                   ],
                 ),
               ),
