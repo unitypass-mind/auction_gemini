@@ -1016,6 +1016,10 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
           _buildPredictionCard(),
           const SizedBox(height: 16),
 
+          // 입찰 전략
+          _buildBiddingStrategyCard(),
+          const SizedBox(height: 16),
+
           // 가격 비교 분석
           _buildPriceComparisonCard(),
           const SizedBox(height: 16),
@@ -1024,28 +1028,9 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
           _buildInvestmentScoreCard(),
           const SizedBox(height: 16),
 
-          // 입찰 전략
-          _buildBiddingStrategyCard(),
-          const SizedBox(height: 16),
-
           // 10가지 고급 기능 카드들
-          if (_result!.confidenceScore != null) ...[
-            _buildConfidenceCard(),
-            const SizedBox(height: 16),
-          ],
-
           if (_result!.competitionLevel != null) ...[
             _buildCompetitionCard(),
-            const SizedBox(height: 16),
-          ],
-
-          if (_result!.riskScore != null) ...[
-            _buildRiskAnalysisCard(),
-            const SizedBox(height: 16),
-          ],
-
-          if (_result!.roundHistory != null && _result!.roundHistory!.isNotEmpty) ...[
-            _buildRoundHistoryCard(),
             const SizedBox(height: 16),
           ],
 
@@ -1054,13 +1039,19 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
             const SizedBox(height: 16),
           ],
 
+          if (_result!.riskScore != null) ...[
+            _buildRiskAnalysisCard(),
+            const SizedBox(height: 16),
+          ],
+
           if (_result!.bidSimulations != null && _result!.bidSimulations!.isNotEmpty) ...[
             _buildBidSimulatorCard(),
             const SizedBox(height: 16),
           ],
 
-          if (_result!.daysUntilAuction != null) ...[
-            _buildDdayCard(),
+          // 권리분석
+          if (_result!.auctionInfo['권리분석'] != null) ...[
+            _buildRightsAnalysisCard(),
             const SizedBox(height: 16),
           ],
 
@@ -1069,9 +1060,9 @@ class _SearchScreenState extends State<SearchScreen> with WidgetsBindingObserver
             const SizedBox(height: 16),
           ],
 
-          // 권리분석
-          if (_result!.auctionInfo['권리분석'] != null)
-            _buildRightsAnalysisCard(),
+          if (_result!.confidenceScore != null) ...[
+            _buildConfidenceCard(),
+          ],
         ],
       ),
     );
