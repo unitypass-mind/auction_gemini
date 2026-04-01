@@ -4175,7 +4175,7 @@ async def search_local_auctions(
                 물건번호,
                 물건종류,
                 지역,
-                소재지,
+                
                 감정가,
                 면적,
                 경매회차,
@@ -4197,8 +4197,8 @@ async def search_local_auctions(
 
         # 지역 필터 (지역 또는 소재지)
         if region:
-            sql += " AND (지역 = ? OR 소재지 LIKE ?)"
-            params.extend([region, f"%{region}%"])
+            sql += " AND (지역 = ? )"
+            params.extend([region])
 
         # 물건종류 필터
         if property_type:
@@ -4236,8 +4236,8 @@ async def search_local_auctions(
             count_sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
             count_params.extend([f"%{query}%", f"%{query}%"])
         if region:
-            count_sql += " AND (지역 = ? OR 소재지 LIKE ?)"
-            count_params.extend([region, f"%{region}%"])
+            count_sql += " AND (지역 = ? )"
+            count_params.extend([region])
         if property_type:
             count_sql += " AND 물건종류 = ?"
             count_params.append(property_type)
