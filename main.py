@@ -4197,8 +4197,8 @@ async def search_local_auctions(
 
         # 지역 필터 (지역 또는 소재지)
         if region:
-            sql += " AND (지역 = ? )"
-            params.extend([region])
+            sql += " AND (지역 LIKE ? )"
+            params.append(f"%{region}%")
 
         # 물건종류 필터
         if property_type:
@@ -4236,8 +4236,8 @@ async def search_local_auctions(
             count_sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
             count_params.extend([f"%{query}%", f"%{query}%"])
         if region:
-            count_sql += " AND (지역 = ? )"
-            count_params.extend([region])
+            count_sql += " AND (지역 LIKE ? )"
+            count_params.append(f"%{region}%")
         if property_type:
             count_sql += " AND 물건종류 = ?"
             count_params.append(property_type)
@@ -4298,16 +4298,15 @@ async def search_local_auctions(
                 "물건번호": row[2],
                 "물건종류": row[3],
                 "지역": row[4],
-                "소재지": row[5],
-                "감정가": row[6],
-                "감정가_formatted": f"{row[6]:,}원" if row[6] else "정보 없음",
-                "면적": row[7],
-                "경매회차": row[8],
-                "predicted_price": row[9],
-                "predicted_price_formatted": f"{row[9]:,}원" if row[9] else "정보 없음",
+                "감정가": row[5],
+                "감정가_formatted": f"{row[5]:,}원" if row[5] else "정보 없음",
+                "면적": row[6],
+                "경매회차": row[7],
+                "predicted_price": row[8],
+                "predicted_price_formatted": f"{row[8]:,}원" if row[8] else "정보 없음",
                 "actual_price": actual_price,
                 "actual_price_formatted": f"{actual_price:,}원" if actual_price else auction_status,
-                "created_at": row[11],
+                "created_at": row[10],
                 "bidding_date": bidding_date_str,
                 "auction_status": auction_status
             })
