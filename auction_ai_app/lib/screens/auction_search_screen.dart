@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import 'home_screen.dart';
 
 /// 경매 물건 상세 검색 화면
-///
-/// 주소, 가격대, 면적 등 다양한 필터로 경매 물건을 검색할 수 있는 전용 화면
 class AuctionSearchScreen extends StatefulWidget {
   const AuctionSearchScreen({super.key});
 
@@ -14,11 +14,17 @@ class AuctionSearchScreen extends StatefulWidget {
 class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
   final ApiService _apiService = ApiService();
   final _addressController = TextEditingController();
+  final _scrollController = ScrollController();
 
   // 검색 상태
   bool _isSearching = false;
   List<dynamic> _searchResults = [];
   String? _searchError;
+
+  // 페이지네이션
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
+  int _totalCount = 0;
 
   // 가격/면적 섹션 펼침 상태
   bool _isPriceAreaExpanded = false;
@@ -35,19 +41,21 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
   @override
   void dispose() {
     _addressController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   /// 검색 실행
-  Future<void> _performSearch() async {
+  Future<void> _performSearch({int page = 0}) async {
     setState(() {
       _isSearching = true;
       _searchError = null;
-      _searchResults = [];
+      if (page == 0) {
+        _searchResults = [];
+      }
     });
 
     try {
-      // 검색 파라미터 구성
       final query = _addressController.text.trim();
 
       // 가격 범위 변환 (억원 -> 원)
@@ -64,7 +72,7 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
       double? minArea;
       double? maxArea;
       if (_areaRange.start > 0) {
-        minArea = _areaRange.start * 3.30579; // 1평 = 3.30579㎡
+        minArea = _areaRange.start * 3.30579;
       }
       if (_areaRange.end < 200) {
         maxArea = _areaRange.end * 3.30579;
@@ -81,8 +89,16 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
 
       setState(() {
         if (response['success'] == true) {
-          _searchResults = response['items'] ?? [];
-          if (_searchResults.isEmpty) {
+          final allResults = response['items'] ?? [];
+          _totalCount = allResults.length;
+
+          // 페이지네이션 적용
+          final startIndex = page * _itemsPerPage;
+          final endIndex = (startIndex + _itemsPerPage).clamp(0, _totalCount);
+          _searchResults = allResults.sublist(startIndex, endIndex);
+          _currentPage = page;
+
+          if (_totalCount == 0) {
             _searchError = '검색 결과가 없습니다';
           }
         } else {
@@ -90,9 +106,18 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
         }
         _isSearching = false;
       });
+
+      // 페이지 변경 시 스크롤을 맨 위로
+      if (page > 0 && _scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     } catch (e) {
       setState(() {
-        _searchError = e.toString();
+        _searchError = '검색 중 오류가 발생했습니다: ${e.toString()}';
         _isSearching = false;
       });
     }
@@ -107,28 +132,48 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
       _areaRange = const RangeValues(0, 200);
       _searchResults = [];
       _searchError = null;
+      _currentPage = 0;
+      _totalCount = 0;
     });
   }
 
-  /// 가격 레이블 포맷 (억원 단위)
-  String _formatPriceLabel(double value) {
-    if (value == 0) {
-      return '최저 입찰가';
-    } else if (value >= 40) {
-      return '무제한';
-    } else {
-      return '${value.toInt()}억';
+  /// 물건 상세 보기
+  void _viewAuctionDetail(String? caseNo) {
+    if (caseNo == null) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    HomeScreen.globalKey.currentState?.switchTab(0, autoSearchCaseNumber: caseNo);
+  }
+
+  /// 가격 포맷팅 (억/만 단위)
+  String _formatPrice(dynamic price) {
+    if (price == null || price == 0) return '-';
+    try {
+      final intPrice = price is int ? price : int.parse(price.toString());
+      final 억 = (intPrice / 100000000).floor();
+      final 만 = ((intPrice % 100000000) / 10000).floor();
+
+      if (억 > 0 && 만 > 0) {
+        return '$억억 ${만}만원';
+      } else if (억 > 0) {
+        return '$억억원';
+      } else if (만 > 0) {
+        return '${만}만원';
+      } else {
+        final formatter = NumberFormat('#,###');
+        return '${formatter.format(intPrice)}원';
+      }
+    } catch (e) {
+      return price.toString();
     }
   }
 
-  /// 면적 레이블 포맷 (평 단위)
-  String _formatAreaLabel(double value) {
-    if (value == 0) {
-      return '0평';
-    } else if (value >= 200) {
-      return '무제한';
-    } else {
-      return '${value.toInt()}평';
+  /// 날짜 포맷팅 (YYYYMMDD -> YYYY-MM-DD)
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.length != 8) return '-';
+    try {
+      return '${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}';
+    } catch (e) {
+      return dateStr;
     }
   }
 
@@ -139,10 +184,7 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
       appBar: AppBar(
         title: const Text(
           '경매 물건 검색',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -150,430 +192,154 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
       ),
       body: Column(
         children: [
-          // 검색 필터 섹션
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 주소로 찾기 섹션
-                  Container(
-                    width: double.infinity,
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '주소로 찾기',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _addressController,
-                          decoration: InputDecoration(
-                            hintText: '주소를 선택해주세요',
-                            hintStyle: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 14,
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF4CAF50),
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          _buildFilters(),
+          Expanded(child: _buildResultsTable()),
+          _buildBottomButtons(),
+        ],
+      ),
+    );
+  }
 
-                  const SizedBox(height: 8),
-
-                  // 경매 상태 섹션
-                  Container(
-                    width: double.infinity,
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '경매 상태',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatusButton('전체'),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatusButton('경매중'),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatusButton('입찰완료'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // 가격/면적 섹션 (펼치기/접기 가능)
-                  Container(
-                    width: double.infinity,
-                    color: Colors.white,
-                    child: Column(
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            setState(() {
-                              _isPriceAreaExpanded = !_isPriceAreaExpanded;
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  '가격/면적',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                Icon(
-                                  _isPriceAreaExpanded
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  color: Colors.grey[600],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (_isPriceAreaExpanded) ...[
-                          const Divider(height: 1),
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 가격 슬라이더
-                                const Text(
-                                  '가격',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _formatPriceLabel(_priceRange.start),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                    Text(
-                                      '~',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[500],
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatPriceLabel(_priceRange.end),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                RangeSlider(
-                                  values: _priceRange,
-                                  min: 0,
-                                  max: 40,
-                                  divisions: 40,
-                                  activeColor: const Color(0xFF4CAF50),
-                                  inactiveColor: Colors.grey[300],
-                                  onChanged: (RangeValues values) {
-                                    setState(() {
-                                      _priceRange = values;
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-
-                                // 면적 슬라이더
-                                const Text(
-                                  '면적',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _formatAreaLabel(_areaRange.start),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                    Text(
-                                      '~',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[500],
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatAreaLabel(_areaRange.end),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                RangeSlider(
-                                  values: _areaRange,
-                                  min: 0,
-                                  max: 200,
-                                  divisions: 40,
-                                  activeColor: const Color(0xFF4CAF50),
-                                  inactiveColor: Colors.grey[300],
-                                  onChanged: (RangeValues values) {
-                                    setState(() {
-                                      _areaRange = values;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // 검색 결과 섹션
-                  if (_isSearching)
-                    Container(
-                      padding: const EdgeInsets.all(32),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF4CAF50),
-                        ),
-                      ),
-                    )
-                  else if (_searchError != null)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Center(
-                        child: Text(
-                          _searchError!,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (_searchResults.isNotEmpty)
-                    Container(
-                      color: Colors.white,
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _searchResults.length,
-                        separatorBuilder: (context, index) => const Divider(
-                          height: 1,
-                          indent: 16,
-                          endIndent: 16,
-                        ),
-                        itemBuilder: (context, index) {
-                          final item = _searchResults[index];
-                          return InkWell(
-                            onTap: () {
-                              // 결과 선택 시 사건번호를 반환하고 화면 닫기
-                              final caseNo = item['case_no'] as String?;
-                              if (caseNo != null) {
-                                Navigator.of(context).pop(caseNo);
-                              }
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['case_no'] ?? '사건번호 없음',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      if (item['물건종류'] != null) ...[
-                                        _buildInfoChip(
-                                          item['물건종류'],
-                                          Colors.blue[50]!,
-                                          Colors.blue[700]!,
-                                        ),
-                                        const SizedBox(width: 6),
-                                      ],
-                                      if (item['지역'] != null)
-                                        _buildInfoChip(
-                                          item['지역'],
-                                          Colors.green[50]!,
-                                          Colors.green[700]!,
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      if (item['감정가_formatted'] != null)
-                                        Text(
-                                          '감정가: ${item['감정가_formatted']}',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      if (item['면적'] != null)
-                                        Text(
-                                          _formatAreaDisplay(item['면적']),
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // 하단 버튼 영역
+  /// 검색 필터 UI
+  Widget _buildFilters() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // 주소로 찾기
           Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('주소로 찾기',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _addressController,
+                  decoration: InputDecoration(
+                    hintText: '예: 인천, 서울 강남구, 부평동',
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  onSubmitted: (_) => _performSearch(),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 8),
+
+          // 경매 상태
+          Container(
+            color: Colors.white,
             padding: const EdgeInsets.all(16),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  // 초기화 버튼
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _resetFilters,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey[300]!),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        '초기화',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('경매 상태',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _buildStatusButton('전체')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatusButton('경매중')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatusButton('입찰완료')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 가격/면적 (접기/펼치기)
+          Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                InkWell(
+                  onTap: () => setState(() => _isPriceAreaExpanded = !_isPriceAreaExpanded),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('가격/면적',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        Icon(_isPriceAreaExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                            color: Colors.grey[600]),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // 검색하기 버튼
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: _isSearching ? null : _performSearch,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                ),
+                if (_isPriceAreaExpanded) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('가격', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_formatPriceLabel(_priceRange.start),
+                                style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                            Text('~', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                            Text(_formatPriceLabel(_priceRange.end),
+                                style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                          ],
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        '검색하기',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                        RangeSlider(
+                          values: _priceRange,
+                          min: 0,
+                          max: 40,
+                          divisions: 40,
+                          activeColor: const Color(0xFF4CAF50),
+                          onChanged: (values) => setState(() => _priceRange = values),
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                        const Text('면적', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_formatAreaLabel(_areaRange.start),
+                                style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                            Text('~', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                            Text(_formatAreaLabel(_areaRange.end),
+                                style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                          ],
+                        ),
+                        RangeSlider(
+                          values: _areaRange,
+                          min: 0,
+                          max: 200,
+                          divisions: 40,
+                          activeColor: const Color(0xFF4CAF50),
+                          onChanged: (values) => setState(() => _areaRange = values),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -581,58 +347,328 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
     );
   }
 
-  /// 정보 칩 위젯 빌더
-  Widget _buildInfoChip(String label, Color bgColor, Color textColor) {
+  String _formatPriceLabel(double value) {
+    if (value == 0) return '최저 입찰가';
+    if (value >= 40) return '무제한';
+    return '${value.toInt()}억';
+  }
+
+  String _formatAreaLabel(double value) {
+    if (value == 0) return '0평';
+    if (value >= 200) return '무제한';
+    return '${value.toInt()}평';
+  }
+
+  /// 검색 결과 테이블
+  Widget _buildResultsTable() {
+    if (_isSearching) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50)));
+    }
+
+    if (_searchError != null) {
+      return Center(
+          child: Text(_searchError!,
+              style: TextStyle(color: Colors.grey[600], fontSize: 14)));
+    }
+
+    if (_searchResults.isEmpty) {
+      return Center(
+          child: Text('검색 버튼을 눌러 경매 물건을 검색하세요',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14)));
+    }
+
+    final totalPages = (_totalCount / _itemsPerPage).ceil();
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(4),
+      color: Colors.white,
+      child: Column(
+        children: [
+          // 결과 개수
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('검색 결과: $_totalCount건',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                if (totalPages > 1)
+                  Text('${_currentPage + 1} / $totalPages 페이지',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+              ],
+            ),
+          ),
+
+          // 테이블 헤더
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              border: Border(bottom: BorderSide(color: Colors.grey[400]!, width: 2)),
+            ),
+            child: Row(
+              children: [
+                _buildHeaderCell('용도/사건번호', flex: 3),
+                _buildHeaderCell('소재지', flex: 4),
+                _buildHeaderCell('가격', flex: 2),
+                _buildHeaderCell('진행상태', flex: 2),
+                _buildHeaderCell('매각기일', flex: 2),
+              ],
+            ),
+          ),
+
+          // 테이블 본문
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: _searchResults.length,
+              itemBuilder: (context, index) {
+                final item = _searchResults[index];
+                return _buildTableRow(item);
+              },
+            ),
+          ),
+
+          // 페이지네이션
+          if (totalPages > 1) _buildPagination(totalPages),
+        ],
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: textColor,
+    );
+  }
+
+  Widget _buildHeaderCell(String text, {int flex = 1}) {
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        child: Text(text,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center),
+      ),
+    );
+  }
+
+  Widget _buildTableRow(Map<String, dynamic> item) {
+    return InkWell(
+      onTap: () => _viewAuctionDetail(item['case_no']),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        child: Row(
+          children: [
+            // 용도/사건번호
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['물건종류'] ?? '-',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.blue),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item['사건번호'] ?? item['case_no'] ?? '-',
+                    style: const TextStyle(fontSize: 10, color: Colors.black87),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+
+            // 소재지
+            Expanded(
+              flex: 4,
+              child: Text(
+                item['소재지'] ?? '-',
+                style: const TextStyle(fontSize: 11),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+            // 가격
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('감정가', style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                  Text(_formatPrice(item['감정가']),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  if (item['최저입찰가'] != null) ...[
+                    const SizedBox(height: 2),
+                    Text('최저가', style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                    Text(_formatPrice(item['최저입찰가']),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF4CAF50)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+
+            // 진행상태
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: item['auction_status'] == '경매중' ? Colors.green[50] : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  item['auction_status'] == '입찰완료'
+                      ? '유찰 ${item['경매회차'] ?? 0}회'
+                      : '경매중',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: item['auction_status'] == '경매중' ? Colors.green[700] : Colors.grey[700],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                ),
+              ),
+            ),
+
+            // 매각기일
+            Expanded(
+              flex: 2,
+              child: Text(
+                _formatDate(item['bidding_date']),
+                style: const TextStyle(fontSize: 11),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// 면적 표시 포맷 (㎡를 평으로 변환하여 함께 표시)
-  String _formatAreaDisplay(dynamic area) {
-    if (area == null) return '';
-
-    // 문자열로 변환
-    final areaStr = area.toString();
-
-    // "61.32㎡" 형식에서 숫자 추출
-    final match = RegExp(r'([\d.]+)').firstMatch(areaStr);
-    if (match == null) return areaStr;
-
-    final sqm = double.tryParse(match.group(1) ?? '0');
-    if (sqm == null || sqm == 0) return areaStr;
-
-    // 제곱미터를 평으로 변환 (1평 = 3.30579㎡)
-    final pyeong = sqm / 3.30579;
-
-    return '$areaStr (${pyeong.toStringAsFixed(0)}평)';
+  /// 페이지네이션
+  Widget _buildPagination(int totalPages) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey[300]!)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: _currentPage > 0 ? () => _performSearch(page: _currentPage - 1) : null,
+            icon: const Icon(Icons.chevron_left),
+            color: const Color(0xFF4CAF50),
+            disabledColor: Colors.grey[400],
+          ),
+          ...List.generate(totalPages, (index) {
+            if ((index - _currentPage).abs() > 2 && index != 0 && index != totalPages - 1) {
+              if (index == 1 || index == totalPages - 2) {
+                return const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('...'));
+              }
+              return const SizedBox.shrink();
+            }
+            final isCurrentPage = index == _currentPage;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: InkWell(
+                onTap: isCurrentPage ? null : () => _performSearch(page: index),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: isCurrentPage ? const Color(0xFF4CAF50) : Colors.white,
+                    border: Border.all(
+                        color: isCurrentPage ? const Color(0xFF4CAF50) : Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('${index + 1}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isCurrentPage ? FontWeight.w600 : FontWeight.normal,
+                        color: isCurrentPage ? Colors.white : Colors.black87,
+                      )),
+                ),
+              ),
+            );
+          }),
+          IconButton(
+            onPressed: _currentPage < totalPages - 1
+                ? () => _performSearch(page: _currentPage + 1)
+                : null,
+            icon: const Icon(Icons.chevron_right),
+            color: const Color(0xFF4CAF50),
+            disabledColor: Colors.grey[400],
+          ),
+        ],
+      ),
+    );
   }
 
-  /// 경매 상태 버튼 빌더
+  /// 하단 버튼
+  Widget _buildBottomButtons() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2)),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _resetFilters,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.grey[300]!),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('초기화',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: _isSearching ? null : () => _performSearch(page: 0),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                child: const Text('검색하기',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusButton(String status) {
     final isSelected = _selectedStatus == status;
-
     return OutlinedButton(
       onPressed: () {
         setState(() {
-          // 같은 버튼을 다시 누르면 선택 해제
-          if (_selectedStatus == status) {
-            _selectedStatus = null;
-          } else {
-            _selectedStatus = status;
-          }
+          _selectedStatus = _selectedStatus == status ? null : status;
         });
       },
       style: OutlinedButton.styleFrom(
@@ -643,17 +679,10 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
           width: isSelected ? 2 : 1,
         ),
         padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-        ),
-      ),
+      child: Text(status,
+          style: TextStyle(fontSize: 14, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500)),
     );
   }
 }
