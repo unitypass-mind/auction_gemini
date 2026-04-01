@@ -149,15 +149,15 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
     if (price == null || price == 0) return '-';
     try {
       final intPrice = price is int ? price : int.parse(price.toString());
-      final 억 = (intPrice / 100000000).floor();
-      final 만 = ((intPrice % 100000000) / 10000).floor();
+      final eok = (intPrice / 100000000).floor();
+      final man = ((intPrice % 100000000) / 10000).floor();
 
-      if (억 > 0 && 만 > 0) {
-        return '$억억 ${만}만원';
-      } else if (억 > 0) {
-        return '$억억원';
-      } else if (만 > 0) {
-        return '${만}만원';
+      if (eok > 0 && man > 0) {
+        return '$eok억 ${man}만원';
+      } else if (eok > 0) {
+        return '$eok억원';
+      } else if (man > 0) {
+        return '${man}만원';
       } else {
         final formatter = NumberFormat('#,###');
         return '${formatter.format(intPrice)}원';
