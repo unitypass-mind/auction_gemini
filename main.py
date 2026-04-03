@@ -48,6 +48,60 @@ logger = logging.getLogger(__name__)
 
 # 예측 결과 캐싱 (메모리 기반, 1시간 유효)
 prediction_cache = {}
+
+# 지역명 정규화 함수
+def normalize_region(region: str) -> str:
+    """
+    사용자 입력 지역명을 데이터베이스 형식으로 정규화
+    예: "경기도" → "경기", "서울시" → "서울"
+    """
+    if not region:
+        return region
+
+    # 지역명 매핑 (사용자 입력 → 데이터베이스 형식)
+    region_mapping = {
+        # 도 단위
+        "경기도": "경기",
+        "강원도": "강원",
+        "강원특별자치도": "강원",
+        "충청북도": "충북",
+        "충북": "충북",
+        "충청남도": "충남",
+        "충남": "충남",
+        "전라북도": "전북",
+        "전북특별자치도": "전북",
+        "전북": "전북",
+        "전라남도": "전남",
+        "전남": "전남",
+        "경상북도": "경북",
+        "경북": "경북",
+        "경상남도": "경남",
+        "경남": "경남",
+        "제주도": "제주",
+        "제주특별자치도": "제주",
+        # 시 단위
+        "서울시": "서울",
+        "서울특별시": "서울",
+        "부산시": "부산",
+        "부산광역시": "부산",
+        "대구시": "대구",
+        "대구광역시": "대구",
+        "인천시": "인천",
+        "인천광역시": "인천",
+        "광주시": "광주",
+        "광주광역시": "광주",
+        "대전시": "대전",
+        "대전광역시": "대전",
+        "울산시": "울산",
+        "울산광역시": "울산",
+        "세종시": "세종",
+        "세종특별자치시": "세종",
+    }
+
+    # 매핑 테이블에서 찾기
+    normalized = region_mapping.get(region, region)
+
+    return normalized
 CACHE_EXPIRY_SECONDS = 3600  # 1시간
 
 def get_cache_key(*args, **kwargs) -> str:
@@ -4198,10 +4252,11 @@ async def search_local_auctions(
             sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
             params.extend([f"%{query}%", f"%{query}%"])
 
-        # 지역 필터 (지역 또는 소재지)
+        # 지역 필터 (지역 또는 소재지) - 입력값 정규화
         if region:
+            normalized_region = normalize_region(region)
             sql += " AND (지역 LIKE ? )"
-            params.append(f"%{region}%")
+            params.append(f"%{normalized_region}%")
 
         # 물건종류 필터
         if property_type:
@@ -4239,8 +4294,9 @@ async def search_local_auctions(
             count_sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
             count_params.extend([f"%{query}%", f"%{query}%"])
         if region:
+            normalized_region = normalize_region(region)
             count_sql += " AND (지역 LIKE ? )"
-            count_params.append(f"%{region}%")
+            count_params.append(f"%{normalized_region}%")
         if property_type:
             count_sql += " AND 물건종류 = ?"
             count_params.append(property_type)
