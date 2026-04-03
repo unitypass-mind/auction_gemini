@@ -2527,15 +2527,17 @@ async def get_accuracy_dashboard(
         }
 
         if mobile:
-            # 모바일: 핵심 통계만 반환 (경량화)
+            # 모바일: 핵심 통계 + 구간별 오차 반환
             return {
                 "success": True,
                 "stats": {
                     "total_predictions": stats.get('total_predictions', 0),
                     "verified_predictions": stats.get('verified_predictions', 0),
                     "avg_error_rate": stats.get('avg_error_rate', 0),
-                    "verification_rate": stats.get('verification_rate', 0)
-                }
+                    "verification_rate": stats.get('verification_rate', 0),
+                    "error_by_price_range": stats.get('error_by_price_range', [])
+                },
+                "recent_verified": db.get_recent_predictions(limit=10, verified_only=True)
             }
         else:
             # 웹: 전체 데이터 반환

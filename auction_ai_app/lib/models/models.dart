@@ -591,12 +591,14 @@ class AccuracyStats {
   final int verifiedPredictions;
   final double avgErrorRate;
   final List<VerifiedPrediction> recentVerified;
+  final List<PriceRangeError> errorByPriceRange;
 
   AccuracyStats({
     required this.totalPredictions,
     required this.verifiedPredictions,
     required this.avgErrorRate,
     required this.recentVerified,
+    required this.errorByPriceRange,
   });
 
   factory AccuracyStats.fromJson(Map<String, dynamic> json) {
@@ -608,6 +610,30 @@ class AccuracyStats {
               ?.map((item) => VerifiedPrediction.fromJson(item))
               .toList() ??
           [],
+      errorByPriceRange: (json['stats']['error_by_price_range'] as List?)
+              ?.map((item) => PriceRangeError.fromJson(item))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+class PriceRangeError {
+  final String range;
+  final int medianError;
+  final int count;
+
+  PriceRangeError({
+    required this.range,
+    required this.medianError,
+    required this.count,
+  });
+
+  factory PriceRangeError.fromJson(Map<String, dynamic> json) {
+    return PriceRangeError(
+      range: json['range'] ?? '',
+      medianError: json['median_error'] ?? 0,
+      count: json['count'] ?? 0,
     );
   }
 }

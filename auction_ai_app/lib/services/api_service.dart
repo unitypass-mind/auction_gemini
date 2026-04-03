@@ -413,7 +413,9 @@ class ApiService {
   /// 모델 정확도 조회
   Future<Map<String, dynamic>> getAccuracy() async {
     try {
-      final response = await _dio.get('/accuracy');
+      final response = await _dio.get('/accuracy', queryParameters: {
+        'mobile': true,
+      });
       return response.data;
     } catch (e) {
       throw _handleError(e);

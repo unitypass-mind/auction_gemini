@@ -186,6 +186,76 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
             const SizedBox(height: 24),
 
+            // 감정가 구간별 예상 오차 카드
+            if (_accuracyStats!.errorByPriceRange.isNotEmpty) ...[
+              Card(
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline, color: Colors.blue[700], size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '감정가 구간별 예상 오차',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[900],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ..._accuracyStats!.errorByPriceRange
+                          .where((range) => range.count > 0)
+                          .map((range) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.bar_chart, size: 16, color: Colors.blue[600]),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        range.range,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        ': ±${_formatErrorAmount(range.medianError)}',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue[900],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                      const SizedBox(height: 8),
+                      Text(
+                        '* 감정가 구간별 중위 오차금액입니다. 고액 물건은 절대 오차가 클 수 있으나 오차율은 낮습니다.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[700],
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
             // 최근 검증 결과
             const Text(
               '최근 검증 결과',
@@ -303,5 +373,12 @@ class _StatsScreenState extends State<StatsScreen> {
       return '${price ~/ 10000}만원';
     }
     return '$price원';
+  }
+
+  String _formatErrorAmount(int amount) {
+    if (amount >= 10000) {
+      return '${amount ~/ 10000}만원';
+    }
+    return '$amount원';
   }
 }

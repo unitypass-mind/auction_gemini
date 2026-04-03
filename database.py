@@ -550,6 +550,38 @@ class PredictionDB:
             if error_amounts:
                 median_error_amount = int(np.median(error_amounts))
 
+            # 감정가 구간별 중위 오차 계산
+            price_ranges = [
+                {'label': '1억 이하', 'min': 0, 'max': 100000000},
+                {'label': '1억~3억', 'min': 100000000, 'max': 300000000},
+                {'label': '3억~5억', 'min': 300000000, 'max': 500000000},
+                {'label': '5억~10억', 'min': 500000000, 'max': 1000000000},
+                {'label': '10억 초과', 'min': 1000000000, 'max': 999999999999}
+            ]
+
+            error_by_range = []
+            for price_range in price_ranges:
+                cursor.execute("""
+                    SELECT error_amount
+                    FROM predictions
+                    WHERE verified = 1
+                      AND error_amount IS NOT NULL
+                      AND 감정가 >= ?
+                      AND 감정가 < ?
+                      AND created_at >= datetime('now', '-' || ? || ' days')
+                    ORDER BY error_amount
+                """, (price_range['min'], price_range['max'], days))
+
+                range_errors = [r[0] for r in cursor.fetchall()]
+                median_error = int(np.median(range_errors)) if range_errors else 0
+                count = len(range_errors)
+
+                error_by_range.append({
+                    'range': price_range['label'],
+                    'median_error': median_error,
+                    'count': count
+                })
+
             stats = {
                 'total_predictions': row[0] or 0,
                 'verified_predictions': row[1] or 0,
@@ -558,7 +590,8 @@ class PredictionDB:
                 'median_error_amount': median_error_amount,  # 중위값 추가
                 'best_accuracy': round(row[4] or 0, 2) if row[4] else None,
                 'worst_accuracy': round(row[5] or 0, 2) if row[5] else None,
-                'verification_rate': round((row[1] or 0) / (row[0] or 1) * 100, 2)
+                'verification_rate': round((row[1] or 0) / (row[0] or 1) * 100, 2),
+                'error_by_price_range': error_by_range  # 구간별 오차 추가
             }
 
             return stats
