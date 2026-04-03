@@ -3065,6 +3065,7 @@ async def auction(
                     '감정가': start_price,
                     '물건종류': auction_info.get('물건종류'),
                     '지역': auction_info.get('지역'),
+                    '소재지': auction_info.get('소재지'),
                     '면적': float(auction_info.get('면적', '0').replace('㎡', '')) if isinstance(auction_info.get('면적'), str) else auction_info.get('면적', 0),
                     '경매회차': auction_info.get('경매회차', 1),
                     '입찰자수': bidders or 10,
@@ -4175,7 +4176,7 @@ async def search_local_auctions(
                 물건번호,
                 물건종류,
                 지역,
-                
+                소재지,
                 감정가,
                 면적,
                 경매회차,
@@ -4256,7 +4257,7 @@ async def search_local_auctions(
         results = []
         for row in rows:
             case_no = row[0]
-            actual_price = row[9]
+            actual_price = row[10]
 
             # 실시간으로 ValueAuction API에서 매각예정일 조회
             bidding_date_str = None
@@ -4298,15 +4299,16 @@ async def search_local_auctions(
                 "물건번호": row[2],
                 "물건종류": row[3],
                 "지역": row[4],
-                "감정가": row[5],
-                "감정가_formatted": f"{row[5]:,}원" if row[5] else "정보 없음",
-                "면적": row[6],
-                "경매회차": row[7],
-                "predicted_price": row[8],
-                "predicted_price_formatted": f"{row[8]:,}원" if row[8] else "정보 없음",
+                "소재지": row[5],
+                "감정가": row[6],
+                "감정가_formatted": f"{row[6]:,}원" if row[6] else "정보 없음",
+                "면적": row[7],
+                "경매회차": row[8],
+                "predicted_price": row[9],
+                "predicted_price_formatted": f"{row[9]:,}원" if row[9] else "정보 없음",
                 "actual_price": actual_price,
                 "actual_price_formatted": f"{actual_price:,}원" if actual_price else auction_status,
-                "created_at": row[10],
+                "created_at": row[11],
                 "bidding_date": bidding_date_str,
                 "auction_status": auction_status
             })

@@ -73,6 +73,7 @@ class PredictionDB:
                 감정가 INTEGER NOT NULL,
                 물건종류 TEXT,
                 지역 TEXT,
+                소재지 TEXT,
                 면적 REAL,
                 경매회차 INTEGER,
                 입찰자수 INTEGER,
@@ -349,7 +350,7 @@ class PredictionDB:
                 cursor.execute("""
                     UPDATE predictions SET
                         물건번호 = ?, 사건번호 = ?,
-                        감정가 = ?, 물건종류 = ?, 지역 = ?, 면적 = ?, 경매회차 = ?, 입찰자수 = ?,
+                        감정가 = ?, 물건종류 = ?, 지역 = ?, 소재지 = ?, 면적 = ?, 경매회차 = ?, 입찰자수 = ?,
                         predicted_price = ?, expected_profit = ?, profit_rate = ?,
                         prediction_mode = ?, model_used = ?, source = ?,
                         입찰자수_실제 = ?, second_price = ?, 권리분석복잡도 = ?, 권리사항태그수 = ?,
@@ -362,6 +363,7 @@ class PredictionDB:
                     data.get('감정가'),
                     data.get('물건종류'),
                     data.get('지역'),
+                    data.get('소재지'),
                     data.get('면적'),
                     data.get('경매회차', 1),
                     data.get('입찰자수', 10),
@@ -388,12 +390,12 @@ class PredictionDB:
                 cursor.execute("""
                     INSERT INTO predictions (
                         case_no, 물건번호, 사건번호,
-                        감정가, 물건종류, 지역, 면적, 경매회차, 입찰자수,
+                        감정가, 물건종류, 지역, 소재지, 면적, 경매회차, 입찰자수,
                         predicted_price, expected_profit, profit_rate,
                         prediction_mode, model_used, source,
                         입찰자수_실제, second_price, 권리분석복잡도, 권리사항태그수,
                         공유지분_건물, 공유지분_토지, 청구금액, 청구금액비율
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     data.get('case_no'),
                     data.get('물건번호'),
@@ -401,6 +403,7 @@ class PredictionDB:
                     data.get('감정가'),
                     data.get('물건종류'),
                     data.get('지역'),
+                    data.get('소재지'),
                     data.get('면적'),
                     data.get('경매회차', 1),
                     data.get('입찰자수', 10),
