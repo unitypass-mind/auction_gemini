@@ -487,7 +487,7 @@ class _AuctionSearchScreenState extends State<AuctionSearchScreen> {
             Expanded(
               flex: 4,
               child: Text(
-                item['소재지'] ?? '-',
+                item['지역'] ?? '-',
                 style: const TextStyle(fontSize: 11),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
