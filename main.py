@@ -4256,7 +4256,7 @@ async def search_local_auctions(
         results = []
         for row in rows:
             case_no = row[0]
-            actual_price = row[10]
+            actual_price = row[9]
 
             # 실시간으로 ValueAuction API에서 매각예정일 조회
             bidding_date_str = None
