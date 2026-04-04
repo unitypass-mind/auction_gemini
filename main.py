@@ -4234,14 +4234,29 @@ async def search_local_auctions(
             "Origin": "https://valueauction.co.kr"
         }
 
-        # API 요청 페이로드
+        # API 요청 페이로드 (웹사이트와 동일한 구조)
         payload = {
             "auctionType": "auction",
+            "all": False,
+            "category": {
+                "residential": ["전체"],
+                "commercial": ["전체"],
+                "land": ["전체"]
+            },
+            "courts": [],
+            "direction": "asc",
+            "gongmaeFilter": {
+                "onbidStatus": "진행",
+                "saleType": "전체",
+                "camcoAssets": ["압류", "국유", "수탁", "유입"]
+            },
             "limit": 200,  # 필터링 전 많이 가져오기
-            "offset": 0
+            "offset": 0,
+            "order": "bidding_date",
+            "status": "진행"  # 기본값: 진행 중인 경매만
         }
 
-        # 검색 키워드가 있으면 추가
+        # 검색 키워드 처리
         if query:
             # 사건번호 패턴인 경우 case 파라미터 사용 (정확 검색)
             # 예: 2024타경10541, 2025타공12345
@@ -4252,7 +4267,11 @@ async def search_local_auctions(
                 # 주소 등 일반 키워드는 keyword 사용
                 payload["keyword"] = query
 
-        logger.info(f"ValueAuction 검색: keyword={query}, region={region}, limit={limit}")
+        # 경매 상태 필터
+        if status and status != "전체":
+            payload["status"] = "진행" if status == "경매중" else "완료"
+
+        logger.info(f"ValueAuction 검색: query={query}, region={region}, status={status}, limit={limit}")
 
         response = requests.post(api_url, json=payload, headers=headers, timeout=15)
 
