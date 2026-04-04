@@ -4243,7 +4243,14 @@ async def search_local_auctions(
 
         # 검색 키워드가 있으면 추가
         if query:
-            payload["keyword"] = query
+            # 사건번호 패턴인 경우 case 파라미터 사용 (정확 검색)
+            # 예: 2024타경10541, 2025타공12345
+            import re
+            if re.match(r'\d{4}타(경|공|강)', query):
+                payload["case"] = query
+            else:
+                # 주소 등 일반 키워드는 keyword 사용
+                payload["keyword"] = query
 
         logger.info(f"ValueAuction 검색: keyword={query}, region={region}, limit={limit}")
 
