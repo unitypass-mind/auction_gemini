@@ -69,3 +69,8 @@ keys/*.pem
 # 결과 파일
 results_*.csv
 sample_results.csv
+
+# Android signing keys
+auction_ai_app/android/key.properties
+auction_ai_app/android/*.jks
+auction_ai_app/android/*.keystore
