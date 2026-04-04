@@ -4204,193 +4204,206 @@ async def search_local_auctions(
     property_type: str = Query(None, description="물건종류 필터"),
     min_price: int = Query(None, description="최소 감정가"),
     max_price: int = Query(None, description="최대 감정가"),
+    min_area: float = Query(None, description="최소 면적 (㎡)"),
+    max_area: float = Query(None, description="최대 면적 (㎡)"),
     status: str = Query(None, description="경매 상태 (전체/경매중/입찰완료)"),
-    limit: int = Query(10, description="반환할 최대 결과 수", ge=1, le=100),
+    limit: int = Query(50, description="반환할 최대 결과 수", ge=1, le=200),
     offset: int = Query(0, description="건너뛸 결과 수 (페이지네이션)", ge=0)
 ):
     """
-    로컬 데이터베이스에서 경매 물건 검색
+    ValueAuction API에서 실시간 경매 물건 검색
 
     - query: 사건번호 또는 주소 키워드
     - region: 지역 필터 (서울, 경기, 인천 등)
     - property_type: 물건종류 (아파트, 오피스텔 등)
     - min_price, max_price: 감정가 범위
+    - min_area, max_area: 면적 범위 (㎡)
+    - status: 경매 상태 (전체/경매중/입찰완료)
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # 오늘 날짜 (YYYYMMDD 형식)
         from datetime import datetime as _dt
-        today_str = _dt.now().strftime('%Y%m%d')
 
-        # SQL 쿼리 구성
-        sql = """
-            SELECT
-                case_no,
-                사건번호,
-                물건번호,
-                물건종류,
-                지역,
-                소재지,
-                감정가,
-                면적,
-                경매회차,
-                predicted_price,
-                actual_price,
-                created_at
-            FROM predictions
-            WHERE 1=1
-        """
-        params = []
+        # ValueAuction API 호출
+        api_url = "https://valueauction.co.kr/api/search"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+            "Content-Type": "application/json",
+            "Referer": "https://valueauction.co.kr/",
+            "Origin": "https://valueauction.co.kr"
+        }
 
-        # 임의 데이터 필터 (안전장치)
-        sql += " AND case_no NOT LIKE 'PREDICT-%' AND case_no NOT LIKE 'VA-%'"
+        # API 요청 페이로드
+        payload = {
+            "auctionType": "auction",
+            "limit": 200,  # 필터링 전 많이 가져오기
+            "offset": 0
+        }
 
-        # 검색 키워드 (사건번호 또는 주소)
+        # 검색 키워드가 있으면 추가
         if query:
-            sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
-            params.extend([f"%{query}%", f"%{query}%"])
+            payload["keyword"] = query
 
-        # 지역 필터 (지역 또는 소재지) - 입력값 정규화
-        if region:
-            normalized_region = normalize_region(region)
-            sql += " AND (지역 LIKE ? )"
-            params.append(f"%{normalized_region}%")
+        logger.info(f"ValueAuction 검색: keyword={query}, region={region}, limit={limit}")
 
-        # 물건종류 필터
-        if property_type:
-            sql += " AND 물건종류 = ?"
-            params.append(property_type)
+        response = requests.post(api_url, json=payload, headers=headers, timeout=15)
 
-        # 가격 범위 필터
-        if min_price:
-            sql += " AND 감정가 >= ?"
-            params.append(min_price)
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="ValueAuction API 호출 실패")
 
-        if max_price:
-            sql += " AND 감정가 <= ?"
-            params.append(max_price)
+        data = response.json()
+        results = data.get('results', [])
 
-        # 경매 상태 필터 - SQL 단계에서는 제거 (실시간 API로 정확하게 필터링)
-        # 대신 더 많은 결과를 가져와서 실시간 필터링 후 limit 적용
-        fetch_limit = limit * 3 if status and status != "전체" else limit
+        logger.info(f"ValueAuction 응답: {len(results)}건")
 
-        # 정렬 및 페이지네이션
-        sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-        params.extend([fetch_limit, offset])
+        # 오늘 날짜
+        today = _dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-        cursor.execute(sql, params)
-        rows = cursor.fetchall()
+        # 결과 필터링 및 변환
+        filtered_items = []
 
-        # 전체 개수 조회 (페이지네이션용)
-        count_sql = "SELECT COUNT(*) FROM predictions WHERE 1=1"
-        count_params = []
-
-        # 임의 데이터 필터 (안전장치)
-        count_sql += " AND case_no NOT LIKE 'PREDICT-%' AND case_no NOT LIKE 'VA-%'"
-
-        if query:
-            count_sql += " AND (사건번호 LIKE ? OR case_no LIKE ?)"
-            count_params.extend([f"%{query}%", f"%{query}%"])
-        if region:
-            normalized_region = normalize_region(region)
-            count_sql += " AND (지역 LIKE ? )"
-            count_params.append(f"%{normalized_region}%")
-        if property_type:
-            count_sql += " AND 물건종류 = ?"
-            count_params.append(property_type)
-        if min_price:
-            count_sql += " AND 감정가 >= ?"
-            count_params.append(min_price)
-        if max_price:
-            count_sql += " AND 감정가 <= ?"
-            count_params.append(max_price)
-        # status 필터는 실시간 API로 처리하므로 SQL에서 제외
-
-        cursor.execute(count_sql, count_params)
-        total_count = int(cursor.fetchone()[0])
-
-        # 결과 포맷팅 및 실시간 상태 확인
-        results = []
-        for row in rows:
-            case_no = row[0]
-            actual_price = row[10]
-
-            # 실시간으로 ValueAuction API에서 매각예정일 조회
-            bidding_date_str = None
-            auction_status = "경매중"  # 기본값
-
+        for item in results:
             try:
-                # ValueAuction API 호출하여 최신 정보 가져오기
-                va_data = get_auction_from_valueauction(case_no)
-                if va_data and va_data.get('bidding_date'):
-                    bidding_date_str = va_data['bidding_date']  # YYYYMMDD 형식
+                # 기본 정보 추출
+                case_data = item.get('case', {})
+                price_data = item.get('price', {})
+                badge_data = item.get('badge', {})
 
-                    # 오늘 날짜와 비교
-                    if bidding_date_str and len(bidding_date_str) == 8:
-                        bidding_date = _dt.strptime(bidding_date_str, '%Y%m%d')
-                        today = _dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                case_no = case_data.get('name', '')
+                if not case_no:
+                    continue
+
+                # 주소 추출
+                address = item.get('address', '')
+                properties = item.get('property', [])
+                if properties and not address:
+                    prop = properties[0]
+                    lands = prop.get('lands', [])
+                    if lands:
+                        addr_dong = lands[0].get('address_dong', [])
+                        address = ' '.join(addr_dong) if addr_dong else ''
+
+                # 지역 추출 (주소에서 첫 단어)
+                item_region = "기타"
+                if address:
+                    region_map = {
+                        "서울": "서울", "경기": "경기", "인천": "인천",
+                        "부산": "부산", "대구": "대구", "대전": "대전",
+                        "광주": "광주", "울산": "울산", "세종": "기타",
+                        "충": "기타", "전": "기타", "경": "기타", "강원": "기타", "제주": "기타"
+                    }
+                    for key, val in region_map.items():
+                        if key in address:
+                            item_region = val
+                            break
+
+                # 지역 필터 적용
+                if region:
+                    normalized_region = normalize_region(region)
+                    # 지역이나 주소에 포함되어 있는지 확인
+                    if normalized_region not in item_region and normalized_region not in address:
+                        continue
+
+                # 물건종류 추출
+                category = badge_data.get('category', '기타')
+
+                # 물건종류 필터 적용
+                if property_type and category != property_type:
+                    continue
+
+                # 가격 정보
+                appraisal_price = int(price_data.get('appraised_price', 0) or 0)
+                lowest_price = int(price_data.get('lowest_selling_price', 0) or appraisal_price)
+
+                # 가격 필터 적용
+                if min_price and appraisal_price < min_price:
+                    continue
+                if max_price and appraisal_price > max_price:
+                    continue
+
+                # 면적 정보
+                area = float(badge_data.get('area_buildings', 0) or badge_data.get('area', 0) or 0.0)
+
+                # 면적 필터 적용
+                if min_area and area < min_area:
+                    continue
+                if max_area and area > max_area:
+                    continue
+
+                # 경매 회차
+                failure_count = int(badge_data.get('failure_count', 0))
+                round_num = failure_count + 1
+
+                # 매각예정일 및 경매 상태
+                bidding_ts = item.get('bidding_date', 0)
+                bidding_date_yyyymmdd = ''
+                auction_status = "경매중"
+
+                if bidding_ts and bidding_ts > 0:
+                    try:
+                        dt_obj = _dt.fromtimestamp(bidding_ts)
+                        bidding_date_yyyymmdd = dt_obj.strftime('%Y%m%d')
 
                         # 매각예정일이 지났으면 입찰완료
-                        if bidding_date < today:
+                        if dt_obj.replace(hour=0, minute=0, second=0, microsecond=0) < today:
                             auction_status = "입찰완료"
-                        else:
-                            auction_status = "경매중"
-                    # actual_price가 있으면 입찰완료 (낙찰가 확정)
-                    elif actual_price and actual_price > 0:
-                        auction_status = "입찰완료"
+                    except:
+                        pass
+
+                # 상태 필터 적용
+                if status and status != "전체":
+                    if status != auction_status:
+                        continue
+
+                # 법원 정보
+                court_name = case_data.get('site', '')
+
+                filtered_items.append({
+                    "case_no": case_no,
+                    "사건번호": case_no,
+                    "물건번호": f"VA-{item.get('id', 'UNKNOWN')}",
+                    "물건종류": category,
+                    "지역": item_region,
+                    "소재지": address,
+                    "감정가": appraisal_price,
+                    "최저입찰가": lowest_price,
+                    "면적": f"{area:.2f}㎡" if area > 0 else "정보 없음",
+                    "경매회차": round_num,
+                    "bidding_date": bidding_date_yyyymmdd,
+                    "auction_status": auction_status,
+                    "법원": court_name
+                })
+
             except Exception as e:
-                logger.warning(f"매각예정일 조회 실패 ({case_no}): {e}")
-                # API 조회 실패 시 actual_price로만 판단
-                if actual_price and actual_price > 0:
-                    auction_status = "입찰완료"
+                logger.warning(f"물건 파싱 실패: {e}")
+                continue
 
-            # status 필터가 지정된 경우, 해당 상태만 포함
-            if status and status != "전체":
-                if status != auction_status:
-                    continue  # 필터와 맞지 않으면 스킵
+        # 페이지네이션 적용
+        total_count = len(filtered_items)
+        start_idx = offset
+        end_idx = min(offset + limit, total_count)
+        paginated_items = filtered_items[start_idx:end_idx]
 
-            results.append({
-                "case_no": case_no,
-                "사건번호": row[1],
-                "물건번호": row[2],
-                "물건종류": row[3],
-                "지역": row[4],
-                "소재지": row[5],
-                "감정가": row[6],
-                "감정가_formatted": f"{row[6]:,}원" if row[6] else "정보 없음",
-                "면적": row[7],
-                "경매회차": row[8],
-                "predicted_price": row[9],
-                "predicted_price_formatted": f"{row[9]:,}원" if row[9] else "정보 없음",
-                "actual_price": actual_price,
-                "actual_price_formatted": f"{actual_price:,}원" if actual_price else auction_status,
-                "created_at": row[11],
-                "bidding_date": bidding_date_str,
-                "auction_status": auction_status
-            })
-
-        conn.close()
-
-        # 실시간 필터링 후 limit 적용
-        final_results = results[:limit]
+        logger.info(f"필터링 후: {total_count}건, 반환: {len(paginated_items)}건")
 
         return {
             "success": True,
-            "items": final_results,
-            "count": len(final_results),
-            "total": total_count,  # 주의: status 필터 적용 전 전체 개수
+            "items": paginated_items,
+            "count": len(paginated_items),
+            "total": total_count,
             "offset": offset,
             "limit": limit,
-            "has_more": len(results) >= limit  # 더 많은 결과가 있을 수 있음
+            "has_more": end_idx < total_count
         }
 
     except Exception as e:
-        logger.error(f"로컬 경매 검색 오류: {e}", exc_info=True)
+        logger.error(f"ValueAuction 검색 오류: {e}", exc_info=True)
         return {
             "success": False,
             "items": [],
+            "count": 0,
+            "total": 0,
             "message": "검색 중 오류가 발생했습니다",
             "error": str(e)
         }
