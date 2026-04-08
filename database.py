@@ -522,12 +522,16 @@ class PredictionDB:
         cursor = conn.cursor()
 
         try:
-            # 이상치 제외 조건: 낙찰률 40~150% (비정상 경매 제외), 오차율 100% 이하
+            # 이상치 제외 조건:
+            # - 낙찰률 40~150% (비정상 경매 제외)
+            # - 오차율 100% 이하
+            # - valueauction_collected 제외 (피처 불완전으로 v4 예측 신뢰성 낮음)
             OUTLIER_FILTER = """
                 AND error_rate <= 100
                 AND actual_price > 0
                 AND 감정가 > 0
                 AND (actual_price * 100.0 / 감정가) BETWEEN 40 AND 150
+                AND (source IS NULL OR source != 'valueauction_collected')
             """
 
             cursor.execute(f"""
@@ -656,6 +660,7 @@ class PredictionDB:
                     AND 감정가 > 0
                     AND error_rate <= 100
                     AND (actual_price * 100.0 / 감정가) BETWEEN 40 AND 150
+                    AND (source IS NULL OR source != 'valueauction_collected')
                 """
 
             query += " ORDER BY created_at DESC LIMIT ?"
