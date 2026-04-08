@@ -2561,8 +2561,8 @@ async def get_accuracy_dashboard(
     - mobile=true: 핵심 통계만 반환 (경량화)
     """
     try:
-        # 통계 조회
-        stats = db.get_accuracy_stats(days=30)
+        # 통계 조회 (90일, 낙찰률 40~150% 이상치 제외)
+        stats = db.get_accuracy_stats(days=90)
 
         # v5 모델 메타데이터 로드
         v5_metadata_path = Path(__file__).parent / 'model_metadata_v5.json'

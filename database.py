@@ -522,26 +522,34 @@ class PredictionDB:
         cursor = conn.cursor()
 
         try:
-            cursor.execute("""
+            # 이상치 제외 조건: 낙찰률 40~150% (비정상 경매 제외), 오차율 100% 이하
+            OUTLIER_FILTER = """
+                AND error_rate <= 100
+                AND actual_price > 0
+                AND 감정가 > 0
+                AND (actual_price * 100.0 / 감정가) BETWEEN 40 AND 150
+            """
+
+            cursor.execute(f"""
                 SELECT
                     COUNT(*) as total,
                     COUNT(CASE WHEN verified = 1 THEN 1 END) as verified,
-                    AVG(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_rate END) as avg_error_rate,
-                    AVG(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_amount END) as avg_error_amount,
-                    MIN(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_rate END) as best_accuracy,
-                    MAX(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_rate END) as worst_accuracy
+                    AVG(CASE WHEN verified = 1 {OUTLIER_FILTER} THEN error_rate END) as avg_error_rate,
+                    AVG(CASE WHEN verified = 1 {OUTLIER_FILTER} THEN error_amount END) as avg_error_amount,
+                    MIN(CASE WHEN verified = 1 {OUTLIER_FILTER} THEN error_rate END) as best_accuracy,
+                    MAX(CASE WHEN verified = 1 {OUTLIER_FILTER} THEN error_rate END) as worst_accuracy
                 FROM predictions
                 WHERE created_at >= datetime('now', '-' || ? || ' days')
             """, (days,))
 
             row = cursor.fetchone()
 
-            # 중위값 계산을 위해 오차금액 데이터 가져오기 (이상치 제외: error_rate > 100%)
-            cursor.execute("""
+            # 중위값 계산 (이상치 제외)
+            cursor.execute(f"""
                 SELECT error_amount
                 FROM predictions
                 WHERE verified = 1 AND error_amount IS NOT NULL
-                  AND error_rate <= 100
+                  {OUTLIER_FILTER}
                   AND created_at >= datetime('now', '-' || ? || ' days')
                 ORDER BY error_amount
             """, (days,))
@@ -551,12 +559,12 @@ class PredictionDB:
             if error_amounts:
                 median_error_amount = int(np.median(error_amounts))
 
-            # 중위값 오차율 계산 (이상치 제외: error_rate > 100%)
-            cursor.execute("""
+            # 중위값 오차율 계산 (이상치 제외)
+            cursor.execute(f"""
                 SELECT error_rate
                 FROM predictions
                 WHERE verified = 1 AND error_rate IS NOT NULL
-                  AND error_rate <= 100
+                  {OUTLIER_FILTER}
                   AND created_at >= datetime('now', '-' || ? || ' days')
                 ORDER BY error_rate
             """, (days,))
@@ -577,12 +585,12 @@ class PredictionDB:
 
             error_by_range = []
             for price_range in price_ranges:
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT error_amount
                     FROM predictions
                     WHERE verified = 1
                       AND error_amount IS NOT NULL
-                      AND error_rate <= 100
+                      {OUTLIER_FILTER}
                       AND 감정가 >= ?
                       AND 감정가 < ?
                       AND created_at >= datetime('now', '-' || ? || ' days')
@@ -642,7 +650,13 @@ class PredictionDB:
             """
 
             if verified_only:
-                query += " AND verified = 1"
+                query += """
+                    AND verified = 1
+                    AND actual_price > 0
+                    AND 감정가 > 0
+                    AND error_rate <= 100
+                    AND (actual_price * 100.0 / 감정가) BETWEEN 40 AND 150
+                """
 
             query += " ORDER BY created_at DESC LIMIT ?"
 
