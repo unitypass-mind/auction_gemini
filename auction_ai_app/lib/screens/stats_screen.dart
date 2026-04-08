@@ -165,18 +165,21 @@ class _StatsScreenState extends State<StatsScreen> {
                           '${_accuracyStats!.totalPredictions}건',
                           Icons.analytics,
                           Colors.blue,
+                          subtitle: null,
                         ),
                         _buildStatItem(
                           '검증 완료',
                           '${_accuracyStats!.verifiedPredictions}건',
                           Icons.check_circle,
                           Colors.green,
+                          subtitle: null,
                         ),
                         _buildStatItem(
                           '평균 오차',
                           '${_accuracyStats!.avgErrorRate.toStringAsFixed(1)}%',
                           Icons.percent,
                           Colors.orange,
+                          subtitle: '중앙값: ${_accuracyStats!.medianErrorRate.toStringAsFixed(1)}%',
                         ),
                       ],
                     ),
@@ -329,7 +332,7 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(String label, String value, IconData icon, Color color, {String? subtitle}) {
     return Column(
       children: [
         Container(
@@ -349,6 +352,16 @@ class _StatsScreenState extends State<StatsScreen> {
             color: color,
           ),
         ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
         const SizedBox(height: 4),
         Text(
           label,

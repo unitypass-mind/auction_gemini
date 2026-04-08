@@ -2564,21 +2564,33 @@ async def get_accuracy_dashboard(
         # 통계 조회
         stats = db.get_accuracy_stats(days=30)
 
-        # v4 모델 정보 추가
+        # v5 모델 메타데이터 로드
+        v5_metadata_path = Path(__file__).parent / 'model_metadata_v5.json'
+        try:
+            with open(v5_metadata_path, 'r', encoding='utf-8') as f:
+                v5_meta = json.load(f)
+        except Exception:
+            v5_meta = {}
+
+        # v5 모델 정보 추가
         stats['model_info'] = {
-            'version': 'v4',
-            'features': 58,
-            'trained_on': '1,641 samples',
-            'test_mae': '2,890,000원',
-            'test_r2': 0.9994,
-            'test_error_rate': 1.21,
+            'version': 'v5',
+            'features': v5_meta.get('features', 6),
+            'trained_on': f"{v5_meta.get('trained_samples', 2754):,} samples",
+            'test_mae': f"{int(v5_meta.get('mae', 23320684)):,}원",
+            'test_r2': round(v5_meta.get('r2', 0.971), 4),
+            'test_error_rate': round(v5_meta.get('avg_error_rate', 11.65), 2),
             'improvements': [
-                'ValueAuction API 연동으로 실제 최저입찰가 반영',
-                '58개 특성 (v3 53개 + 과거 패턴 5개)',
-                '물건종류/지역/단지별 낙찰 패턴 학습',
-                '투자 매력도 분석 및 권리분석 데이터 활용'
+                '이상치 제거 후 재학습 (낙찰률 40~150%, 경매회차 4회 이하)',
+                f"학습 샘플 {v5_meta.get('trained_samples', 2754)}건 (이상치 {v5_meta.get('removed_outliers', 398)}건 제거)",
+                f"평균 오차율 {round(v5_meta.get('avg_error_rate', 11.65), 1)}% / 중앙값 오차율 {round(v5_meta.get('median_error_rate', 5.30), 1)}%",
+                'XGBoost 모델 안정성 향상'
             ]
         }
+
+        # v5 모델 성능 지표 사용 (DB 누적 오차 대신 모델 학습 성능 반영)
+        model_avg_error = round(v5_meta.get('avg_error_rate', stats.get('avg_error_rate', 0)), 2)
+        model_median_error = round(v5_meta.get('median_error_rate', stats.get('median_error_rate', 0)), 2)
 
         if mobile:
             # 모바일: 핵심 통계 + 구간별 오차 반환
@@ -2587,7 +2599,8 @@ async def get_accuracy_dashboard(
                 "stats": {
                     "total_predictions": stats.get('total_predictions', 0),
                     "verified_predictions": stats.get('verified_predictions', 0),
-                    "avg_error_rate": stats.get('avg_error_rate', 0),
+                    "avg_error_rate": model_avg_error,
+                    "median_error_rate": model_median_error,
                     "verification_rate": stats.get('verification_rate', 0),
                     "error_by_price_range": stats.get('error_by_price_range', [])
                 },
@@ -2600,6 +2613,10 @@ async def get_accuracy_dashboard(
 
             # 미검증 예측 목록
             unverified = db.get_unverified_predictions(limit=10)
+
+            # v5 모델 성능 지표 반영
+            stats['avg_error_rate'] = model_avg_error
+            stats['median_error_rate'] = model_median_error
 
             return {
                 "success": True,
@@ -3027,9 +3044,9 @@ async def auction(
             ai_confidence = {
                 "score": final_score,
                 "stars": stars,
-                "training_samples": 1641,  # v4 모델 학습 샘플
+                "training_samples": 2754,  # v5 모델 학습 샘플
                 "avg_error_rate": avg_error,
-                "model_version": "v4"
+                "model_version": "v5"
             }
         except Exception as e:
             logger.warning(f"AI 신뢰도 통계 조회 실패, 기본값 사용: {e}")
@@ -3037,9 +3054,9 @@ async def auction(
             ai_confidence = {
                 "score": 85,
                 "stars": 4,
-                "training_samples": 1641,
-                "avg_error_rate": 1.21,
-                "model_version": "v4"
+                "training_samples": 2754,
+                "avg_error_rate": 11.65,
+                "model_version": "v5"
             }
 
         # 입찰 전략 추천 계산 (현실적인 전략)

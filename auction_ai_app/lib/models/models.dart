@@ -590,6 +590,7 @@ class AccuracyStats {
   final int totalPredictions;
   final int verifiedPredictions;
   final double avgErrorRate;
+  final double medianErrorRate;
   final List<VerifiedPrediction> recentVerified;
   final List<PriceRangeError> errorByPriceRange;
 
@@ -597,6 +598,7 @@ class AccuracyStats {
     required this.totalPredictions,
     required this.verifiedPredictions,
     required this.avgErrorRate,
+    required this.medianErrorRate,
     required this.recentVerified,
     required this.errorByPriceRange,
   });
@@ -606,6 +608,7 @@ class AccuracyStats {
       totalPredictions: json['stats']['total_predictions'] ?? 0,
       verifiedPredictions: json['stats']['verified_predictions'] ?? 0,
       avgErrorRate: (json['stats']['avg_error_rate'] ?? 0).toDouble(),
+      medianErrorRate: (json['stats']['median_error_rate'] ?? 0).toDouble(),
       recentVerified: (json['recent_verified'] as List?)
               ?.map((item) => VerifiedPrediction.fromJson(item))
               .toList() ??

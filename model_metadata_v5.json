@@ -1,0 +1,18 @@
+{
+  "version": "v5",
+  "features": 6,
+  "trained_samples": 2754,
+  "filtered_from": 3173,
+  "removed_outliers": 398,
+  "mae": 23320684.0,
+  "r2": 0.9710289835929871,
+  "avg_error_rate": 11.65175549559786,
+  "median_error_rate": 5.302725043782837,
+  "filter_criteria": {
+    "낙찰률_최소": 40,
+    "낙찰률_최대": 150,
+    "경매회차_최대": 4,
+    "최소금액": 5000000,
+    "최대오차율": 100
+  }
+}
