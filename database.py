@@ -526,21 +526,22 @@ class PredictionDB:
                 SELECT
                     COUNT(*) as total,
                     COUNT(CASE WHEN verified = 1 THEN 1 END) as verified,
-                    AVG(CASE WHEN verified = 1 THEN error_rate END) as avg_error_rate,
-                    AVG(CASE WHEN verified = 1 THEN error_amount END) as avg_error_amount,
-                    MIN(CASE WHEN verified = 1 THEN error_rate END) as best_accuracy,
-                    MAX(CASE WHEN verified = 1 THEN error_rate END) as worst_accuracy
+                    AVG(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_rate END) as avg_error_rate,
+                    AVG(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_amount END) as avg_error_amount,
+                    MIN(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_rate END) as best_accuracy,
+                    MAX(CASE WHEN verified = 1 AND error_rate <= 100 THEN error_rate END) as worst_accuracy
                 FROM predictions
                 WHERE created_at >= datetime('now', '-' || ? || ' days')
             """, (days,))
 
             row = cursor.fetchone()
 
-            # 중위값 계산을 위해 오차금액 데이터 가져오기
+            # 중위값 계산을 위해 오차금액 데이터 가져오기 (이상치 제외: error_rate > 100%)
             cursor.execute("""
                 SELECT error_amount
                 FROM predictions
                 WHERE verified = 1 AND error_amount IS NOT NULL
+                  AND error_rate <= 100
                   AND created_at >= datetime('now', '-' || ? || ' days')
                 ORDER BY error_amount
             """, (days,))
@@ -549,6 +550,21 @@ class PredictionDB:
             median_error_amount = 0
             if error_amounts:
                 median_error_amount = int(np.median(error_amounts))
+
+            # 중위값 오차율 계산 (이상치 제외: error_rate > 100%)
+            cursor.execute("""
+                SELECT error_rate
+                FROM predictions
+                WHERE verified = 1 AND error_rate IS NOT NULL
+                  AND error_rate <= 100
+                  AND created_at >= datetime('now', '-' || ? || ' days')
+                ORDER BY error_rate
+            """, (days,))
+
+            error_rates = [r[0] for r in cursor.fetchall()]
+            median_error_rate = 0.0
+            if error_rates:
+                median_error_rate = float(np.median(error_rates))
 
             # 감정가 구간별 중위 오차 계산
             price_ranges = [
@@ -566,6 +582,7 @@ class PredictionDB:
                     FROM predictions
                     WHERE verified = 1
                       AND error_amount IS NOT NULL
+                      AND error_rate <= 100
                       AND 감정가 >= ?
                       AND 감정가 < ?
                       AND created_at >= datetime('now', '-' || ? || ' days')
@@ -587,7 +604,8 @@ class PredictionDB:
                 'verified_predictions': row[1] or 0,
                 'avg_error_rate': round(row[2] or 0, 2),
                 'avg_error_amount': int(row[3] or 0),
-                'median_error_amount': median_error_amount,  # 중위값 추가
+                'median_error_amount': median_error_amount,  # 중위값 금액
+                'median_error_rate': round(median_error_rate, 2),  # 중위값 오차율
                 'best_accuracy': round(row[4] or 0, 2) if row[4] else None,
                 'worst_accuracy': round(row[5] or 0, 2) if row[5] else None,
                 'verification_rate': round((row[1] or 0) / (row[0] or 1) * 100, 2),

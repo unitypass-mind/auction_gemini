@@ -2588,19 +2588,15 @@ async def get_accuracy_dashboard(
             ]
         }
 
-        # v5 모델 성능 지표 사용 (DB 누적 오차 대신 모델 학습 성능 반영)
-        model_avg_error = round(v5_meta.get('avg_error_rate', stats.get('avg_error_rate', 0)), 2)
-        model_median_error = round(v5_meta.get('median_error_rate', stats.get('median_error_rate', 0)), 2)
-
         if mobile:
-            # 모바일: 핵심 통계 + 구간별 오차 반환
+            # 모바일: 핵심 통계 + 구간별 오차 반환 (DB 실측값 기반, 이상치 제외)
             return {
                 "success": True,
                 "stats": {
                     "total_predictions": stats.get('total_predictions', 0),
                     "verified_predictions": stats.get('verified_predictions', 0),
-                    "avg_error_rate": model_avg_error,
-                    "median_error_rate": model_median_error,
+                    "avg_error_rate": stats.get('avg_error_rate', 0),
+                    "median_error_rate": stats.get('median_error_rate', 0),
                     "verification_rate": stats.get('verification_rate', 0),
                     "error_by_price_range": stats.get('error_by_price_range', [])
                 },
@@ -2613,10 +2609,6 @@ async def get_accuracy_dashboard(
 
             # 미검증 예측 목록
             unverified = db.get_unverified_predictions(limit=10)
-
-            # v5 모델 성능 지표 반영
-            stats['avg_error_rate'] = model_avg_error
-            stats['median_error_rate'] = model_median_error
 
             return {
                 "success": True,
